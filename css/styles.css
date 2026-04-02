@@ -1,0 +1,102 @@
+/* KYTC Roadway Processor — Custom Styles */
+
+/* ── Stepper ────────────────────────────────────────────────────────────── */
+.stepper-done .step-circle {
+  background-color: #16a34a; /* green-600 */
+  color: white;
+}
+.stepper-done .step-circle::after {
+  content: '✓';
+}
+.stepper-done .step-num {
+  display: none;
+}
+.stepper-active .step-circle {
+  background-color: #1d4ed8; /* blue-700 */
+  color: white;
+  box-shadow: 0 0 0 3px #bfdbfe; /* blue-200 ring */
+}
+.stepper-pending .step-circle {
+  background-color: #e5e7eb; /* gray-200 */
+  color: #9ca3af; /* gray-400 */
+}
+.stepper-done .step-label,
+.stepper-active .step-label {
+  color: #1e3a5f;
+  font-weight: 600;
+}
+.stepper-pending .step-label {
+  color: #9ca3af;
+}
+
+/* ── Drop Zone ──────────────────────────────────────────────────────────── */
+#drop-zone {
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+#drop-zone.drag-over {
+  background-color: #eff6ff; /* blue-50 */
+  border-color: #3b82f6; /* blue-500 */
+}
+
+/* ── Data Table ─────────────────────────────────────────────────────────── */
+.table-scroll {
+  overflow-x: auto;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.table-scroll table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+}
+
+/* ── Progress Bar ───────────────────────────────────────────────────────── */
+#progress-bar {
+  transition: width 0.3s ease;
+}
+
+/* ── Log Container ──────────────────────────────────────────────────────── */
+#log-container {
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+/* ── Attribute Cards ────────────────────────────────────────────────────── */
+#attributes-container label:has(input:checked) {
+  background-color: #eff6ff;
+  border-color: #3b82f6;
+}
+
+/* ── Spinner ────────────────────────────────────────────────────────────── */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Toast ──────────────────────────────────────────────────────────────── */
+#toast {
+  transform: translateY(0);
+  transition: opacity 0.3s ease;
+  max-width: 360px;
+}
+
+/* ── Export Buttons ─────────────────────────────────────────────────────── */
+.export-btn {
+  transition: transform 0.1s ease;
+}
+.export-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

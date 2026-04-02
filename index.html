@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KYTC Roadway Processor</title>
+  <meta name="description" content="Kentucky Transportation Cabinet Spatial API front-end. Import GPS data, enrich with LRS roadway attributes, and export in multiple formats." />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- JSZip for KMZ export (3.10.1 — no known vulnerabilities) -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <!-- Custom styles -->
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <!--
+    App entry point — imports DuckDB-WASM 1.30.0 (patched version) and all modules.
+    Security note: version 1.30.0 is the officially patched release per
+    DuckDB security advisory GHSA-w62p-hx95-gf2c (CVE-2025-59037).
+    The compromised version was 1.29.2 only.
+  -->
+</head>
+
+<body class="bg-slate-100 min-h-screen text-gray-800 font-sans">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <header class="bg-gradient-to-r from-blue-900 to-blue-800 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">KYTC Roadway Processor</h1>
+        <p class="text-blue-300 text-sm mt-0.5">
+          Kentucky Transportation Cabinet &bull; Spatial API Front-End
+        </p>
+      </div>
+      <div id="db-status" class="flex items-center gap-2 text-sm text-blue-200">
+        <div class="status-dot w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
+        <span class="status-text">Loading DuckDB…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Stepper ──────────────────────────────────────────────────────────── -->
+  <div class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-6 py-3">
+      <ol class="flex items-center gap-1 sm:gap-2 overflow-x-auto">
+        <!-- Step 1 -->
+        <li id="stepper-1" class="stepper-active flex items-center gap-1.5 flex-shrink-0">
+          <div class="step-circle w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold bg-blue-700 text-white">
+            <span class="step-num">1</span>
+          </div>
+          <span class="step-label text-sm font-semibold text-blue-900">Import</span>
+        </li>
+        <li class="flex-1 h-0.5 bg-gray-200 min-w-4"></li>
+
+        <!-- Step 2 -->
+        <li id="stepper-2" class="stepper-pending flex items-center gap-1.5 flex-shrink-0">
+          <div class="step-circle w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold bg-gray-200 text-gray-400">
+            <span class="step-num">2</span>
+          </div>
+          <span class="step-label text-sm text-gray-400">Preview</span>
+        </li>
+        <li class="flex-1 h-0.5 bg-gray-200 min-w-4"></li>
+
+        <!-- Step 3 -->
+        <li id="stepper-3" class="stepper-pending flex items-center gap-1.5 flex-shrink-0">
+          <div class="step-circle w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold bg-gray-200 text-gray-400">
+            <span class="step-num">3</span>
+          </div>
+          <span class="step-label text-sm text-gray-400">Attributes</span>
+        </li>
+        <li class="flex-1 h-0.5 bg-gray-200 min-w-4"></li>
+
+        <!-- Step 4 -->
+        <li id="stepper-4" class="stepper-pending flex items-center gap-1.5 flex-shrink-0">
+          <div class="step-circle w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold bg-gray-200 text-gray-400">
+            <span class="step-num">4</span>
+          </div>
+          <span class="step-label text-sm text-gray-400">Process</span>
+        </li>
+        <li class="flex-1 h-0.5 bg-gray-200 min-w-4"></li>
+
+        <!-- Step 5 -->
+        <li id="stepper-5" class="stepper-pending flex items-center gap-1.5 flex-shrink-0">
+          <div class="step-circle w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold bg-gray-200 text-gray-400">
+            <span class="step-num">5</span>
+          </div>
+          <span class="step-label text-sm text-gray-400">Export</span>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ── Main Content ──────────────────────────────────────────────────────── -->
+  <main class="max-w-7xl mx-auto px-6 py-8 space-y-6">
+
+    <!-- ╔══════════════════════════════════════════╗ -->
+    <!-- ║  STEP 1 — Import Data                    ║ -->
+    <!-- ╚══════════════════════════════════════════╝ -->
+    <section id="step-1" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
+          <svg class="w-5 h-5 text-blue-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-gray-900">Import Data</h2>
+          <p class="text-sm text-gray-500">Load a local file or enter a URL. Supported formats: CSV, JSON, Parquet, GeoJSON.</p>
+        </div>
+      </div>
+
+      <!-- Drop zone -->
+      <div id="drop-zone"
+           class="border-2 border-dashed border-blue-300 rounded-xl p-10 text-center cursor-pointer hover:bg-blue-50 transition-colors mb-4">
+        <svg class="w-12 h-12 mx-auto text-blue-400 mb-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <p class="text-gray-600 font-medium">Drag &amp; drop a file here, or <span class="text-blue-600 underline">click to browse</span></p>
+        <p class="text-xs text-gray-400 mt-1">CSV &bull; JSON &bull; Parquet &bull; GeoJSON</p>
+        <input type="file" id="file-input" class="hidden"
+               accept=".csv,.tsv,.json,.ndjson,.jsonl,.parquet,.geojson" />
+      </div>
+
+      <!-- URL input -->
+      <div class="flex gap-2 items-center">
+        <div class="flex-1 relative">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M14.121 14.121a4 4 0 015.657 0l.5.5a4 4 0 01-5.657 5.657l-1.5-1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <input type="url" id="url-input"
+                 class="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                 placeholder="https://example.com/data.csv (no CORS restrictions)" />
+        </div>
+        <select id="format-select"
+                class="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="auto">Auto-detect</option>
+          <option value="csv">CSV</option>
+          <option value="json">JSON</option>
+          <option value="parquet">Parquet</option>
+          <option value="geojson">GeoJSON</option>
+        </select>
+        <button id="url-load-btn"
+                class="px-4 py-2.5 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-lg transition-colors">
+          Load URL
+        </button>
+      </div>
+
+      <!-- Status -->
+      <div class="flex items-center gap-2 mt-3 min-h-6">
+        <div id="import-spinner" class="spinner hidden"></div>
+        <p id="import-status" class="text-sm text-gray-500"></p>
+      </div>
+
+      <!-- Info banner (populated after load) -->
+      <div id="data-info" class="hidden mt-3 text-sm font-medium text-green-700 bg-green-50 rounded-lg px-4 py-2 border border-green-200"></div>
+
+      <!-- What is this? -->
+      <details class="mt-5 text-sm text-gray-500 bg-gray-50 rounded-xl p-4 border border-gray-200">
+        <summary class="cursor-pointer font-medium text-gray-700">About this tool</summary>
+        <div class="mt-3 space-y-2">
+          <p>This tool uses <strong>DuckDB-WASM</strong> to load your data entirely in the browser — nothing is uploaded to any server.</p>
+          <p>Once loaded, select coordinate columns and choose which <strong>KYTC roadway attributes</strong> to fetch from the Kentucky Transportation Cabinet Spatial API. The API returns LRS (Linear Referencing System) attributes such as county, route, milepoint, speed limit, and more for the nearest roadway to each GPS coordinate.</p>
+          <p>When processing is complete, download the enriched dataset in your preferred format.</p>
+          <p class="text-xs"><a href="https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/docs" target="_blank" rel="noopener" class="text-blue-600 underline">API documentation</a> &bull; <a href="https://kytc-api-v100-docs-qrntk7e3ra-uc.a.run.app/app" target="_blank" rel="noopener" class="text-blue-600 underline">KYTC Data Explorer</a></p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ╔══════════════════════════════════════════╗ -->
+    <!-- ║  STEP 2 — Preview & Configure            ║ -->
+    <!-- ╚══════════════════════════════════════════╝ -->
+    <section id="step-2" hidden class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-5">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center">
+          <svg class="w-5 h-5 text-indigo-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M3 10h18M3 6h18M3 14h18M3 18h18" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-gray-900">Preview &amp; Configure</h2>
+          <p class="text-sm text-gray-500">Verify your data and map the latitude/longitude columns.</p>
+        </div>
+      </div>
+
+      <!-- Coordinate column mapping -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
+        <div>
+          <label for="lat-col-select" class="block text-sm font-semibold text-amber-900 mb-1">
+            Latitude Column <span class="text-red-500">*</span>
+          </label>
+          <select id="lat-col-select"
+                  class="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+            <option value="">-- select column --</option>
+          </select>
+        </div>
+        <div>
+          <label for="lon-col-select" class="block text-sm font-semibold text-amber-900 mb-1">
+            Longitude Column <span class="text-red-500">*</span>
+          </label>
+          <select id="lon-col-select"
+                  class="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+            <option value="">-- select column --</option>
+          </select>
+        </div>
+        <p class="sm:col-span-2 text-xs text-amber-700">
+          💡 Coordinates must be in WGS84 (EPSG:4326) decimal degrees.
+          Auto-detected based on column names — please verify.
+        </p>
+      </div>
+
+      <!-- Data table preview -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-sm font-semibold text-gray-700">Data Preview</h3>
+          <div class="flex items-center gap-2 text-sm text-gray-500">
+            <button id="prev-page-btn" disabled
+                    class="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">‹</button>
+            <span id="page-info">Page 1 of 1</span>
+            <button id="next-page-btn" disabled
+                    class="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">›</button>
+          </div>
+        </div>
+        <div class="table-scroll rounded-xl border border-gray-200">
+          <table id="data-table" class="w-full text-sm"></table>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-2">
+        <button id="back-to-import-btn"
+                class="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 transition-colors">
+          ← Back
+        </button>
+        <button id="to-attributes-btn"
+                class="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-lg transition-colors">
+          Select Attributes →
+        </button>
+      </div>
+    </section>
+
+    <!-- ╔══════════════════════════════════════════╗ -->
+    <!-- ║  STEP 3 — Select Attributes              ║ -->
+    <!-- ╚══════════════════════════════════════════╝ -->
+    <section id="step-3" hidden class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-5">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center">
+          <svg class="w-5 h-5 text-violet-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-gray-900">Select Roadway Attributes</h2>
+          <p class="text-sm text-gray-500">Choose which KYTC LRS attributes to fetch for each coordinate.</p>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex items-center gap-3 pb-2 border-b border-gray-100">
+        <span id="attr-count" class="text-sm font-medium text-blue-700">0 attributes selected</span>
+        <button id="select-all-btn"
+                class="px-3 py-1 text-xs border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors">
+          Select All
+        </button>
+        <button id="clear-all-btn"
+                class="px-3 py-1 text-xs border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+          Clear All
+        </button>
+      </div>
+
+      <!-- API options -->
+      <div class="flex items-center gap-4 text-sm bg-gray-50 rounded-xl p-3 border border-gray-200">
+        <label class="flex items-center gap-2 font-medium text-gray-700">
+          Snap Distance (ft):
+          <input type="number" id="snap-distance" value="100" min="10" max="5000" step="10"
+                 class="w-24 px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </label>
+        <p class="text-xs text-gray-500">Maximum distance to search for a nearby roadway.</p>
+      </div>
+
+      <!-- Attribute checklist (built dynamically) -->
+      <div id="attributes-container" class="space-y-2"></div>
+
+      <div class="flex justify-between gap-3 pt-2">
+        <button id="back-to-configure-btn"
+                class="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 transition-colors">
+          ← Back
+        </button>
+        <button id="to-process-btn"
+                class="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-lg transition-colors">
+          Fetch Attributes →
+        </button>
+      </div>
+    </section>
+
+    <!-- ╔══════════════════════════════════════════╗ -->
+    <!-- ║  STEP 4 — Process                        ║ -->
+    <!-- ╚══════════════════════════════════════════╝ -->
+    <section id="step-4" hidden class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-5">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center">
+          <svg class="w-5 h-5 text-orange-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-gray-900">Fetch Roadway Attributes</h2>
+          <p class="text-sm text-gray-500">Each coordinate row will be sent to the KYTC Spatial API.</p>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex gap-3">
+        <button id="process-btn"
+                class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors">
+          ▶ Start Processing
+        </button>
+        <button id="cancel-btn" disabled
+                class="px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          ✕ Cancel
+        </button>
+        <button id="back-to-attributes-btn"
+                class="px-4 py-2.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 transition-colors">
+          ← Back
+        </button>
+      </div>
+
+      <!-- Progress bar -->
+      <div>
+        <div class="flex justify-between text-xs text-gray-500 mb-1">
+          <span id="progress-stats">0 / 0</span>
+          <span id="progress-text">0%</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div id="progress-bar" class="h-3 bg-blue-600 rounded-full" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Summary (shown after completion) -->
+      <div id="process-summary" class="hidden grid grid-cols-3 gap-4 text-center">
+        <div class="bg-green-50 rounded-xl p-4 border border-green-200">
+          <p class="text-2xl font-bold text-green-700" id="summary-matched">0</p>
+          <p class="text-xs text-green-600 mt-1">Matched</p>
+        </div>
+        <div class="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
+          <p class="text-2xl font-bold text-yellow-700" id="summary-not-found">0</p>
+          <p class="text-xs text-yellow-600 mt-1">Not Found</p>
+        </div>
+        <div class="bg-red-50 rounded-xl p-4 border border-red-200">
+          <p class="text-2xl font-bold text-red-700" id="summary-errors">0</p>
+          <p class="text-xs text-red-600 mt-1">Errors</p>
+        </div>
+      </div>
+
+      <!-- Event log -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Activity Log</h3>
+        <div id="log-container"
+             class="bg-gray-900 text-green-400 rounded-lg p-3 font-mono text-xs min-h-10 border border-gray-700">
+        </div>
+      </div>
+
+      <!-- Continue to export -->
+      <div class="flex justify-end">
+        <button id="to-export-btn" disabled
+                class="px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          View Results &amp; Export →
+        </button>
+      </div>
+    </section>
+
+    <!-- ╔══════════════════════════════════════════╗ -->
+    <!-- ║  STEP 5 — Results & Export               ║ -->
+    <!-- ╚══════════════════════════════════════════╝ -->
+    <section id="step-5" hidden class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-5">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-teal-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-teal-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Results &amp; Export</h2>
+            <p class="text-sm text-gray-500">Preview the enriched dataset and download in your preferred format.</p>
+          </div>
+        </div>
+        <button id="start-over-btn"
+                class="px-3 py-1.5 text-sm border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+          ↺ Start Over
+        </button>
+      </div>
+
+      <!-- Export buttons -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <button id="export-csv-btn"
+                class="export-btn flex flex-col items-center gap-1.5 px-3 py-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl text-blue-800 text-sm font-medium transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          ↓ CSV
+        </button>
+        <button id="export-json-btn"
+                class="export-btn flex flex-col items-center gap-1.5 px-3 py-4 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl text-purple-800 text-sm font-medium transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          ↓ JSON
+        </button>
+        <button id="export-parquet-btn"
+                class="export-btn flex flex-col items-center gap-1.5 px-3 py-4 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl text-orange-800 text-sm font-medium transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          ↓ Parquet
+        </button>
+        <button id="export-geojson-btn" disabled
+                class="export-btn flex flex-col items-center gap-1.5 px-3 py-4 bg-green-50 hover:bg-green-100 border border-green-200 rounded-xl text-green-800 text-sm font-medium transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          ↓ GeoJSON
+        </button>
+        <button id="export-kml-btn" disabled
+                class="export-btn flex flex-col items-center gap-1.5 px-3 py-4 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl text-red-800 text-sm font-medium transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          ↓ KML
+        </button>
+        <button id="export-kmz-btn" disabled
+                class="export-btn flex flex-col items-center gap-1.5 px-3 py-4 bg-pink-50 hover:bg-pink-100 border border-pink-200 rounded-xl text-pink-800 text-sm font-medium transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V8l-4-4H8z" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M14 4v4h4M12 12v6m-3-3l3 3 3-3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          ↓ KMZ
+        </button>
+      </div>
+
+      <!-- Final data table -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-sm font-semibold text-gray-700">Enriched Data</h3>
+          <div class="flex items-center gap-2 text-sm text-gray-500">
+            <button id="final-prev-page-btn" disabled
+                    class="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">‹</button>
+            <span id="final-page-info">Page 1 of 1</span>
+            <button id="final-next-page-btn" disabled
+                    class="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">›</button>
+          </div>
+        </div>
+        <div class="table-scroll rounded-xl border border-gray-200">
+          <table id="final-data-table" class="w-full text-sm"></table>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button id="back-to-process-btn"
+                class="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 transition-colors">
+          ← Back to Processing
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── Footer ──────────────────────────────────────────────────────────── -->
+  <footer class="mt-12 border-t border-gray-200 bg-white">
+    <div class="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-500">
+      <p>
+        <strong class="text-gray-700">KYTC Roadway Processor</strong> —
+        Powered by
+        <a href="https://duckdb.org/docs/stable/clients/wasm/overview" target="_blank" rel="noopener" class="text-blue-600 hover:underline">DuckDB-WASM</a>
+        &amp; the
+        <a href="https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/docs" target="_blank" rel="noopener" class="text-blue-600 hover:underline">KYTC Spatial API</a>
+      </p>
+      <p>Data provided by the Kentucky Transportation Cabinet — no data is uploaded to any server.</p>
+    </div>
+  </footer>
+
+  <!-- ── Toast Notification ─────────────────────────────────────────────── -->
+  <div id="toast" hidden
+       class="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-lg text-white text-sm font-medium shadow-lg max-w-xs">
+  </div>
+
+  <!-- ── App Bootstrap (ES module) ─────────────────────────────────────────── -->
+  <script type="module" src="js/app.js"></script>
+
+</body>
+</html>

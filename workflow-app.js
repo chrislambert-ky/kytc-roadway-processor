@@ -30,7 +30,6 @@ const state = {
   },
   isProcessing: false,
   selectedColumns: new Set(),
-  selectedExportColumns: new Set(),
   selectedExportFormat: 'csv',
   lastProcessedAt: null,
   logLines: [],
@@ -215,33 +214,6 @@ function bindExportEvents() {
         logProcessConsole(`Export error: ${error.message}`);
       }
     });
-  });
-
-  // Export column selector chip toggles
-  document.getElementById('exportHeaderChips')?.addEventListener('click', (e) => {
-    const chip = e.target.closest('.col-chip');
-    if (!chip || chip.dataset.locked) return;
-    const col = chip.dataset.col;
-    if (state.selectedExportColumns.has(col)) {
-      state.selectedExportColumns.delete(col);
-      chip.classList.remove('is-selected');
-    } else {
-      state.selectedExportColumns.add(col);
-      chip.classList.add('is-selected');
-    }
-    updateExportTableColumns();
-  });
-
-  document.getElementById('exportColSelectAll')?.addEventListener('click', () => {
-    getReviewColumns().forEach(col => state.selectedExportColumns.add(col));
-    renderExportColumnSelector();
-    updateExportTableColumns();
-  });
-
-  document.getElementById('exportColUnselectAll')?.addEventListener('click', () => {
-    state.selectedExportColumns.clear();
-    renderExportColumnSelector();
-    updateExportTableColumns();
   });
 
   updateExportOptionStyles();
@@ -1071,10 +1043,7 @@ async function downloadGeoParquet(rows, filename) {
 }
 
 function buildExportRows() {
-  const allCols = getReviewColumns();
-  const cols = state.selectedExportColumns.size
-    ? allCols.filter(col => state.selectedExportColumns.has(col))
-    : allCols;
+  const cols = getReviewColumns();
   return state.workingRows.map(row => {
     const exportRow = {};
     cols.forEach(col => {
@@ -1175,45 +1144,16 @@ function downloadBlob(content, filename, mimeType) {
 
 function renderExportSummary() {
   if (!canAccessStep4()) {
-    // Reset and show empty state
-    state.selectedExportColumns = new Set();
-    const chips = document.getElementById('exportHeaderChips');
-    const countEl = document.getElementById('exportColCount');
     const badge = document.getElementById('exportPreviewBadge');
     const container = document.getElementById('exportPreviewTable');
-    if (chips) chips.innerHTML = '<span class="text-secondary small">Process data in Step 3 to see columns.</span>';
-    if (countEl) countEl.textContent = '0 columns';
     if (badge) badge.textContent = '0 rows ready';
     if (container) container.innerHTML = '<div class="text-secondary py-4 px-2">Process data in Step 3 to unlock downloads.</div>';
     if (state.tables.export) { state.tables.export.destroy(); state.tables.export = null; }
     return;
   }
 
-  // Always reset column selection to all available columns on fresh render
-  state.selectedExportColumns = new Set(getReviewColumns());
-  renderExportColumnSelector();
   renderExportTable();
   updateExportOptionStyles();
-}
-
-function renderExportColumnSelector() {
-  const container = document.getElementById('exportHeaderChips');
-  const countEl = document.getElementById('exportColCount');
-  if (!container) return;
-
-  const allCols = getReviewColumns();
-  if (countEl) countEl.textContent = `${allCols.length} column${allCols.length !== 1 ? 's' : ''}`;
-
-  if (!allCols.length) {
-    container.innerHTML = '<span class="text-secondary small">No columns available.</span>';
-    return;
-  }
-
-  container.innerHTML = allCols.map(col => {
-    const selected = state.selectedExportColumns.has(col);
-    const classes = ['col-chip', selected ? 'is-selected' : ''].filter(Boolean).join(' ');
-    return `<span class="${classes}" data-col="${escapeAttribute(col)}">${escapeHtml(col)}</span>`;
-  }).join('');
 }
 
 function renderExportTable() {
@@ -1231,15 +1171,13 @@ function renderExportTable() {
     return;
   }
 
-  const allCols = getReviewColumns();
-  const cols = allCols.filter(col => state.selectedExportColumns.has(col));
-  const selectedCount = state.selectedExportColumns.size;
+  const cols = getReviewColumns();
   const totalRows = state.workingRows.length;
 
-  if (badge) badge.textContent = `${totalRows.toLocaleString()} rows · ${selectedCount} column${selectedCount !== 1 ? 's' : ''} selected`;
+  if (badge) badge.textContent = `${totalRows.toLocaleString()} rows · ${cols.length} column${cols.length !== 1 ? 's' : ''}`;
 
   if (!cols.length) {
-    container.innerHTML = '<div class="text-secondary py-4 px-2">No columns selected — pick at least one above.</div>';
+    container.innerHTML = '<div class="text-secondary py-4 px-2">No columns found — check your selections in Steps 1 and 2.</div>';
     return;
   }
 
@@ -1261,30 +1199,6 @@ function renderExportTable() {
     pagination: false,
     placeholder: 'No rows to preview.'
   });
-}
-
-function updateExportTableColumns() {
-  const allCols = getReviewColumns();
-  const cols = allCols.filter(col => state.selectedExportColumns.has(col));
-  const selectedCount = state.selectedExportColumns.size;
-  const totalRows = state.workingRows.length;
-  const badge = document.getElementById('exportPreviewBadge');
-
-  if (badge) badge.textContent = `${totalRows.toLocaleString()} rows · ${selectedCount} column${selectedCount !== 1 ? 's' : ''} selected`;
-
-  if (!state.tables.export) {
-    renderExportTable();
-    return;
-  }
-
-  const previewRows = state.workingRows.slice(0, 10).map(row => {
-    const r = {};
-    cols.forEach(col => { r[col] = row[col] ?? ''; });
-    return r;
-  });
-
-  state.tables.export.setColumns(buildTabulatorColumns(cols.length ? cols : ['']));
-  state.tables.export.setData(previewRows);
 }
 
 function updateExportOptionStyles() {

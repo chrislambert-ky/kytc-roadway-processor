@@ -7,7 +7,6 @@ Appalachian_Hwy_Roadway_Status,Appalachian Highway Roadway Status,STRING,"FHWA r
 Appalachian_Hwy_Route_Sequence,Appalachian Highway Route Sequence,FLOAT,Federal program route sequence designation,
 Appalachian_Hwy_Section_ID,Appalachian Highway Section ID,STRING,Numeric designation of the route section determined by FHWA,
 Appalachian_Hwy_Section_Length_for_Cost_Estimating,Appalachian Highway Section Length for Cost Estimating,FLOAT,Length (in miles) of the route sequence as determined by FHWA,
-Begin_Milepoint,Begin Milepoint,FLOAT,Begin milepoint of a LRS line,Get Route Info by Coordinates | Get Route Info by Route and Milepoint
 Bridge_Feature_Intersect,Bridge Feature Intersect,ARRAY<STRING>,Feature name in which the bridge overpasses,
 Bridge_Identifier,Bridge Identifier,ARRAY<STRING>,Bridge Identifier,
 Cardinality,Cardinality,STRING,"Main direction of travel along a roadway (Cardinal, Non-Cardinal)",
@@ -19,7 +18,6 @@ County_Number,County Number,INTEGER,A numeric code representing one of the 120 c
 Direction,Direction,STRING,"Direction of travel (Northbound, Southbound, Eastbound, Westbound or combination of Northbound & Southbound, Eastbound & Westbound)",
 District_Name,District Name,STRING,City designation for each KYTC District,
 District_Number,District Number,INTEGER,Numerical designation for each KYTC District,
-End_Milepoint,End Milepoint,FLOAT,End milepoint of a LRS line,Get Route Info by Coordinates | Get Route Info by Route and Milepoint
 Enhanced_National_Hwy_System,Enhanced National Highway System,STRING,Code denoting if route segment is part of the Enhanced National Highway System by MAP-21 program,
 Extended_Weight_System,Extended Weight System,STRING,Description of route's extended weight designation,
 Federal_System_Roadway_Status,Federal System Roadway Status,STRING,"Status of the roadway segment as related to the Federal Highway System (Closed, Open, Proposed)",

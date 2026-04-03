@@ -94,11 +94,12 @@
                   </div>
 
                   <div class="section-label mb-2">Load CSV</div>
-                  <button id="dropZone" class="drop-zone w-100" type="button">
+                  <div id="dropZone" class="drop-zone w-100" role="button" tabindex="0">
                     <span class="drop-zone-icon"><i class="bi bi-cloud-arrow-up"></i></span>
                     <span class="drop-zone-text">Click to browse or drag &amp; drop your CSV here</span>
                     <span class="drop-zone-subtext">The file stays in your browser until you process it.</span>
-                  </button>
+                    <button id="clearFileBtn" class="drop-zone-clear" type="button" title="Unload file" aria-label="Unload file">&times;</button>
+                  </div>
                   <input id="fileInput" type="file" accept=".csv,text/csv" hidden>
 
                   <div id="fileStatus" class="status-pill mt-3">No file loaded yet.</div>
@@ -370,12 +371,13 @@
           <div>
             <p class="eyebrow mb-1">Kentucky Transportation Cabinet</p>
             <h2 class="h5 mb-0" id="aboutModalLabel">Roadway Attribute Processor</h2>
+            <p class="about-notes mt-1 mb-0"><em>Disclaimer:  This is a personal project and is not an official tool of the Kentucky Transportation Cabinet.</em></p>
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body about-modal-body">
 
-          <p class="about-lead">A browser-based tool for enriching coordinate datasets with Kentucky roadway attributes from the KYTC Spatial API — no software installation required.</p>
+          <p class="about-lead">A browser-based graphical interface for the KYTC Spatial API — enrich coordinate datasets with Kentucky roadway attributes with no software installation required.</p>
 
           <div class="about-steps">
             <div class="about-step">
@@ -418,6 +420,7 @@
 
           <h3 class="about-section-heading">Sample data</h3>
           <p class="about-notes">Looking for data to try? Visit <a href="https://trak.kytc.ky.gov/data-hub" target="_blank" rel="noreferrer">KYTC TRAK Data Hub</a> and download bridge data in CSV format.</p>
+
 
         </div>
         <div class="modal-footer about-modal-footer">

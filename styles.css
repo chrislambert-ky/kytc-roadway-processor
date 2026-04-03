@@ -344,6 +344,8 @@ code {
 }
 
 .drop-zone {
+  position: relative;
+  cursor: pointer;
   border: 2px dashed #cbd5e1;
   border-radius: 0.8rem;
   background: #f8f9fa;
@@ -366,6 +368,29 @@ code {
   border-color: #198754;
   background: #f0fff4;
   color: #198754;
+}
+
+.drop-zone-clear {
+  display: none;
+  position: absolute;
+  top: 0.35rem;
+  right: 0.45rem;
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: #198754;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  opacity: 0.7;
+}
+
+.drop-zone-clear:hover {
+  opacity: 1;
+}
+
+.drop-zone.has-file .drop-zone-clear {
+  display: block;
 }
 
 .drop-zone-icon {

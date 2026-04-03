@@ -73,10 +73,21 @@ function bindUploadEvents() {
   const dropZone = document.getElementById('dropZone');
   const fileInput = document.getElementById('fileInput');
 
-  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('click', (event) => {
+    if (event.target.closest('#clearFileBtn')) return;
+    fileInput.click();
+  });
+  dropZone.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') fileInput.click();
+  });
   fileInput.addEventListener('change', (event) => {
     const [file] = event.target.files || [];
     if (file) handleFile(file);
+  });
+
+  document.getElementById('clearFileBtn').addEventListener('click', (event) => {
+    event.stopPropagation();
+    clearFile();
   });
 
   ['dragenter', 'dragover'].forEach(eventName => {
@@ -281,6 +292,34 @@ async function initDuckDB() {
     logProcessConsole(`DuckDB-WASM unavailable (${error.message}). Using built-in CSV parser.`);
     updateStatus('DuckDB could not be loaded. Using built-in CSV parser instead.', 'warning');
   }
+}
+
+function clearFile() {
+  state.originalRows = [];
+  state.workingRows = [];
+  state.headerMap = [];
+  state.originalColumnOrder = [];
+  state.selectedColumns = new Set();
+  state.processedKeys = new Set();
+  state.lastProcessedAt = null;
+
+  const dropZone = document.getElementById('dropZone');
+  dropZone.classList.remove('has-file');
+  dropZone.querySelector('.drop-zone-text').textContent = 'Click to browse or drag & drop your CSV here';
+  dropZone.querySelector('.drop-zone-subtext').textContent = 'The file stays in your browser until you process it.';
+
+  const fileInput = document.getElementById('fileInput');
+  fileInput.value = '';
+
+  document.getElementById('fileStatus').textContent = 'No file loaded yet.';
+  document.getElementById('columnCount').textContent = '0 columns';
+
+  renderColumnSelector([]);
+  renderLoadPreviewTable([]);
+  renderReviewTable();
+  renderExportSummary();
+  updateStatus('File unloaded.', 'secondary');
+  updateUIState();
 }
 
 async function handleFile(file) {
@@ -656,7 +695,8 @@ function renderLoadPreviewTable(rows, badgeText = 'No file loaded') {
   const columns = state.selectedColumns.size
     ? base.filter(col => state.selectedColumns.has(col) || col === lat || col === lon)
     : base;
-  renderDataTable('loadPreviewTable', 'loadPreviewBadge', rows, badgeText, columns, 'load');
+  const badge = rows.length ? `${rows.length.toLocaleString()} row(s)` : badgeText;
+  renderDataTable('loadPreviewTable', 'loadPreviewBadge', rows, badge, columns, 'load');
 }
 
 function renderReviewTable() {

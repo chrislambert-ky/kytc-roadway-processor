@@ -288,9 +288,9 @@ async function initDuckDB() {
     logProcessConsole('DuckDB-WASM initialized. Files will load via DuckDB.');
   } catch (error) {
     state.dbReady = false;
-    setDuckDbIndicator('warning', 'DuckDB');
-    logProcessConsole(`DuckDB-WASM unavailable (${error.message}). Using built-in CSV parser.`);
-    updateStatus('DuckDB could not be loaded. Using built-in CSV parser instead.', 'warning');
+    setDuckDbIndicator('error', 'DuckDB');
+    logProcessConsole(`DuckDB-WASM failed to initialize (${error.message}). File loading is unavailable.`);
+    updateStatus('DuckDB could not be loaded. File loading is unavailable — try refreshing the page.', 'danger');
   }
 }
 
@@ -335,29 +335,27 @@ async function handleFile(file) {
     let rows;
     let usedDuckDB = false;
 
-    if (state.dbReady) {
-      // Register the raw bytes with DuckDB and query with auto type detection.
-      // all_varchar=true keeps column values as strings, matching prior behavior.
-      const buffer = await file.arrayBuffer();
-      await state.db.registerFileBuffer('input_data.csv', new Uint8Array(buffer));
-      const result = await state.conn.query(
-        `SELECT * FROM read_csv_auto('input_data.csv', header=true, sample_size=-1, all_varchar=true)`
-      );
-      const fieldNames = result.schema.fields.map(f => f.name);
-      rows = result.toArray().map(arrowRow => {
-        const obj = {};
-        fieldNames.forEach(name => {
-          const val = arrowRow[name];
-          obj[name] = val == null ? '' : String(val);
-        });
-        return obj;
-      });
-      usedDuckDB = true;
-    } else {
-      // Fallback: built-in RFC-4180 parser
-      const csvText = await file.text();
-      rows = parseCSV(csvText);
+    if (!state.dbReady) {
+      throw new Error('DuckDB is not available. Try refreshing the page.');
     }
+
+    // Register the raw bytes with DuckDB and query with auto type detection.
+    // all_varchar=true keeps column values as strings, matching prior behavior.
+    const buffer = await file.arrayBuffer();
+    await state.db.registerFileBuffer('input_data.csv', new Uint8Array(buffer));
+    const result = await state.conn.query(
+      `SELECT * FROM read_csv_auto('input_data.csv', header=true, sample_size=-1, all_varchar=true)`
+    );
+    const fieldNames = result.schema.fields.map(f => f.name);
+    rows = result.toArray().map(arrowRow => {
+      const obj = {};
+      fieldNames.forEach(name => {
+        const val = arrowRow[name];
+        obj[name] = val == null ? '' : String(val);
+      });
+      return obj;
+    });
+    usedDuckDB = true;
 
     if (!rows.length) {
       throw new Error('No data rows were found in the file.');
@@ -997,31 +995,31 @@ async function downloadFormat(format) {
 
   switch (format) {
     case 'csv':
-      downloadCsv(rows, `kytc-roadway-enriched-${stamp}.csv`);
+      downloadCsv(rows, `kytc-roadway-processed-${stamp}.csv`);
       break;
     case 'json':
-      downloadBlob(JSON.stringify(rows, null, 2), `kytc-roadway-enriched-${stamp}.json`, 'application/json;charset=utf-8;');
+      downloadBlob(JSON.stringify(rows, null, 2), `kytc-roadway-processed-${stamp}.json`, 'application/json;charset=utf-8;');
       break;
     case 'geojson': {
       const geojson = buildGeoJson(rows);
-      downloadBlob(JSON.stringify(geojson, null, 2), `kytc-roadway-enriched-${stamp}.geojson`, 'application/geo+json;charset=utf-8;');
+      downloadBlob(JSON.stringify(geojson, null, 2), `kytc-roadway-processed-${stamp}.geojson`, 'application/geo+json;charset=utf-8;');
       break;
     }
     case 'kml': {
       const kml = buildKml(rows);
-      downloadBlob(kml, `kytc-roadway-enriched-${stamp}.kml`, 'application/vnd.google-earth.kml+xml;charset=utf-8;');
+      downloadBlob(kml, `kytc-roadway-processed-${stamp}.kml`, 'application/vnd.google-earth.kml+xml;charset=utf-8;');
       break;
     }
     case 'parquet':
       updateStatus('Building Parquet file via DuckDB-WASM…', 'info');
-      await downloadParquet(rows, `kytc-roadway-enriched-${stamp}.parquet`);
+      await downloadParquet(rows, `kytc-roadway-processed-${stamp}.parquet`);
       break;
     case 'geoparquet':
       updateStatus('Building GeoParquet file via DuckDB-WASM…', 'info');
-      await downloadGeoParquet(rows, `kytc-roadway-enriched-${stamp}.parquet`);
+      await downloadGeoParquet(rows, `kytc-roadway-processed-${stamp}.parquet`);
       break;
     case 'xlsx':
-      downloadExcel(rows, `kytc-roadway-enriched-${stamp}.xlsx`);
+      downloadExcel(rows, `kytc-roadway-processed-${stamp}.xlsx`);
       break;
     default:
       updateStatus('That export format is not ready yet.', 'warning');

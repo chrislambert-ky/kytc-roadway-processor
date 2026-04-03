@@ -69,7 +69,7 @@
       <button class="workflow-tab" type="button" data-step="4">
         <span class="workflow-step-num">Step 4</span>
         <span class="workflow-title">Extract</span>
-        <span class="workflow-subtitle">Download the enriched result in the format you want.</span>
+        <span class="workflow-subtitle">Download the processed result in the format you want.</span>
       </button>
     </div>
 
@@ -367,41 +367,39 @@
           <div>
             <p class="eyebrow mb-1">Kentucky Transportation Cabinet</p>
             <h2 class="h5 mb-0" id="aboutModalLabel">Roadway Attribute Processor</h2>
-            <p class="about-notes mt-1 mb-0"><em>Disclaimer:  This is a personal project and is not an official tool of the Kentucky Transportation Cabinet.</em></p>
+            <p class="about-notes mt-1 mb-0"><em><strong>This is not an official tool of the Kentucky Transportation Cabinet.</strong> This is a personal project providing a browser-based graphical user interface for the Kentucky Transportation Cabinet (KYTC) Spatial Application Programming Interface (API) that appends roadway attributes to coordinate datasets with no software installation required.</em></p>
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body about-modal-body">
-
-          <p class="about-lead">A browser-based graphical interface for the KYTC Spatial API — enrich coordinate datasets with Kentucky roadway attributes with no software installation required.</p>
 
           <div class="about-steps">
             <div class="about-step">
               <span class="about-step-num">1</span>
               <div>
                 <strong>Load Data</strong>
-                <p>Upload a CSV file containing point coordinates. The tool auto-detects latitude and longitude columns and shows a live spreadsheet preview. Use the column selector to hide fields you don’t need before processing.</p>
+                <p>Upload a CSV file containing point coordinates. Files are loaded via DuckDB-WASM, an in-browser SQL engine. The tool auto-detects latitude and longitude columns and shows a live spreadsheet preview. Use the column selector to show or hide fields before processing. Column headers with spaces are automatically normalized.</p>
               </div>
             </div>
             <div class="about-step">
               <span class="about-step-num">2</span>
               <div>
                 <strong>Transform</strong>
-                <p>Choose which KYTC roadway attributes to append to each row. A curated set of defaults (route, milepoint, district, county, etc.) are pre-selected and locked. Additional fields from the full API schema can be toggled on or off.</p>
+                <p>Choose which KYTC LRS (Linear Referencing System) attributes to append to each row. A curated set of defaults — District, County, Route Label, Road Name, Cardinality, Direction, Milepoint, Snap Distance, and Snap Probability — are pre-selected and locked. Additional fields from the full API schema can be toggled on or off, or searched by name.</p>
               </div>
             </div>
             <div class="about-step">
               <span class="about-step-num">3</span>
               <div>
-                <strong>Process</strong>
-                <p>The tool sends each coordinate pair to the KYTC Spatial API in parallel async batches of up to 500 requests. Progress is shown live. Rows that cannot be matched are flagged with a status code rather than silently dropped.</p>
+                <strong>Process &amp; Review</strong>
+                <p>The tool sends each coordinate pair to the KYTC Spatial API in parallel async batches of up to 500 requests with automatic retry logic. Progress is logged in real time. Rows that cannot be matched are flagged with a status code rather than silently dropped. You can return to Step 2, change optional attributes, and re-run without losing previously processed values.</p>
               </div>
             </div>
             <div class="about-step">
               <span class="about-step-num">4</span>
               <div>
                 <strong>Extract</strong>
-                <p>Select which columns to include in the export, then download in your preferred format: CSV, JSON, GeoJSON, KML, Excel, Parquet, or GeoParquet. A 10-row preview updates as you toggle columns.</p>
+                <p>Download the result in your preferred format: CSV, JSON, GeoJSON, KML, Excel (xlsx), Parquet, or GeoParquet. Parquet and GeoParquet are generated via DuckDB-WASM. A 10-row preview updates as you switch formats.</p>
               </div>
             </div>
           </div>
@@ -409,9 +407,11 @@
           <h3 class="about-section-heading">Technical notes</h3>
           <ul class="about-notes">
             <li>All processing happens entirely in your browser — no data is sent to any server other than the KYTC Spatial API.</li>
-            <li>Large CSV files are loaded via <strong>DuckDB-WASM</strong>, an in-browser SQL engine. Parquet and GeoParquet export also use DuckDB.</li>
+            <li>CSV files are loaded via <strong>DuckDB-WASM</strong>, an in-browser SQL engine. DuckDB is required — if it fails to initialize, file loading will be unavailable.</li>
+            <li>Parquet and GeoParquet export also use DuckDB-WASM.</li>
             <li>Excel export uses <strong>SheetJS</strong>. All other formats are generated with plain JavaScript.</li>
-            <li>A <code>date_processed</code> column is automatically appended to every row recording the local date the API was queried — useful for tracking which version of the linear referencing system was used.</li>
+            <li>A <code>date_processed</code> column is automatically appended to every row, recording the local date the API was queried — useful for tracking which version of the linear referencing system was used.</li>
+            <li>Column headers are automatically normalized: leading/trailing spaces are trimmed and internal spaces are replaced with underscores.</li>
           </ul>
 
           <h3 class="about-section-heading">Sample data</h3>

@@ -110,15 +110,11 @@
                     <span class="badge text-bg-light">CSV &middot; JSON &middot; GeoJSON &middot; Parquet</span>
                   </div>
 
-                  <div class="alert alert-light border shadow-sm small-note mt-2 mb-3" role="alert">
-                    <strong>Supported formats:</strong> CSV, JSON (array of objects), GeoJSON (FeatureCollection of Points), and Parquet. Each row needs valid latitude/longitude values. Column headers with spaces are normalized to <code>_</code>.
-                  </div>
-
                   <div class="section-label mb-2">Load file</div>
                   <div id="dropZone" class="drop-zone w-100" role="button" tabindex="0">
                     <span class="drop-zone-icon"><i class="bi bi-cloud-arrow-up"></i></span>
                     <span class="drop-zone-text">Click to browse or drag &amp; drop a file here</span>
-                    <span class="drop-zone-subtext">The file stays in your browser until you process it.</span>
+                    <span class="drop-zone-subtext">Supported formats: CSV, JSON, GeoJSON, and Parquet.</span>
                     <button id="clearFileBtn" class="drop-zone-clear" type="button" title="Unload file" aria-label="Unload file">&times;</button>
                   </div>
                   <input id="fileInput" type="file" accept=".csv,.json,.geojson,.parquet,text/csv" hidden>
@@ -167,6 +163,8 @@
                       <div id="wktParseStatus" class="d-none small mt-1"></div>
                     </div>
                   </div>
+
+                  <p class="form-text text-secondary small mt-3 mb-0"><i class="bi bi-info-circle me-1"></i>Column headers are normalized to uppercase with spaces replaced by <code>_</code>.</p>
                 </div>
               </div>
             </div>

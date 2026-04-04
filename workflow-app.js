@@ -36,6 +36,9 @@ const state = {
   db: null,
   conn: null,
   dbReady: false,
+  coordinateMode: 'separate',
+  wktColumn: null,
+  wktDerivedCols: { lat: null, lon: null },
 };
 
 document.addEventListener('DOMContentLoaded', init);
@@ -175,6 +178,18 @@ function bindActionEvents() {
     updateUIState();
   });
 
+  document.querySelectorAll('input[name="coordMode"]').forEach(radio => {
+    radio.addEventListener('change', (event) => {
+      if (event.target.checked) switchCoordinateMode(event.target.value);
+    });
+  });
+
+  document.getElementById('wktSelect')?.addEventListener('change', (event) => {
+    if (state.coordinateMode === 'wkt' || state.coordinateMode === 'other') {
+      applyWktColumn(event.target.value, state.coordinateMode === 'other');
+    }
+  });
+
   document.getElementById('colSelectAll')?.addEventListener('click', () => {
     state.selectedColumns = new Set(state.originalColumnOrder);
     renderColumnSelector(state.headerMap);
@@ -302,10 +317,19 @@ function clearFile() {
   state.selectedColumns = new Set();
   state.processedKeys = new Set();
   state.lastProcessedAt = null;
+  state.coordinateMode = 'separate';
+  state.wktColumn = null;
+  state.wktDerivedCols = { lat: null, lon: null };
+
+  const coordModeSeparate = document.getElementById('coordModeSeparate');
+  if (coordModeSeparate) coordModeSeparate.checked = true;
+  document.getElementById('coordSeparateFields')?.classList.remove('d-none');
+  document.getElementById('coordWktFields')?.classList.add('d-none');
+  document.getElementById('wktParseStatus')?.classList.add('d-none');
 
   const dropZone = document.getElementById('dropZone');
   dropZone.classList.remove('has-file');
-  dropZone.querySelector('.drop-zone-text').textContent = 'Click to browse or drag & drop your CSV here';
+  dropZone.querySelector('.drop-zone-text').textContent = 'Click to browse or drag & drop a file here';
   dropZone.querySelector('.drop-zone-subtext').textContent = 'The file stays in your browser until you process it.';
 
   const fileInput = document.getElementById('fileInput');
@@ -324,38 +348,16 @@ function clearFile() {
 
 async function handleFile(file) {
   const ext = file.name.toLowerCase().split('.').pop();
-  if (ext !== 'csv') {
-    updateStatus('Please upload a CSV file.', 'danger');
+  const validExts = ['csv', 'json', 'geojson', 'parquet'];
+  if (!validExts.includes(ext)) {
+    updateStatus('Please upload a CSV, JSON, GeoJSON, or Parquet file.', 'danger');
     return;
   }
 
   updateStatus('Reading file…', 'info');
 
   try {
-    let rows;
-    let usedDuckDB = false;
-
-    if (!state.dbReady) {
-      throw new Error('DuckDB is not available. Try refreshing the page.');
-    }
-
-    // Register the raw bytes with DuckDB and query with auto type detection.
-    // all_varchar=true keeps column values as strings, matching prior behavior.
-    const buffer = await file.arrayBuffer();
-    await state.db.registerFileBuffer('input_data.csv', new Uint8Array(buffer));
-    const result = await state.conn.query(
-      `SELECT * FROM read_csv_auto('input_data.csv', header=true, sample_size=-1, all_varchar=true)`
-    );
-    const fieldNames = result.schema.fields.map(f => f.name);
-    rows = result.toArray().map(arrowRow => {
-      const obj = {};
-      fieldNames.forEach(name => {
-        const val = arrowRow[name];
-        obj[name] = val == null ? '' : String(val);
-      });
-      return obj;
-    });
-    usedDuckDB = true;
+    const { rows, loadedVia } = await loadFileByFormat(file, ext);
 
     if (!rows.length) {
       throw new Error('No data rows were found in the file.');
@@ -384,7 +386,7 @@ async function handleFile(file) {
     renderColumnSelector(headerMap);
     populateCoordinateSelectors(state.originalColumnOrder);
     clearProcessConsole();
-    logProcessConsole(`Loaded ${file.name} with ${rows.length.toLocaleString()} row(s) via ${usedDuckDB ? 'DuckDB-WASM' : 'built-in CSV parser'}.`);
+    logProcessConsole(`Loaded ${file.name} with ${rows.length.toLocaleString()} row(s) via ${loadedVia}.`);
     if (headerMap.some(item => item.original !== item.normalized)) {
       logProcessConsole('Normalized one or more headers by trimming spaces and replacing spaces with underscores.');
     }
@@ -407,6 +409,147 @@ async function handleFile(file) {
     renderExportSummary();
     updateStatus(error.message || 'The file could not be read.', 'danger');
     updateUIState();
+  }
+}
+
+async function loadFileByFormat(file, ext) {
+  if (ext === 'csv') return loadCsvFile(file);
+  if (ext === 'json') return loadJsonFile(file);
+  if (ext === 'geojson') return loadGeoJsonFile(file);
+  if (ext === 'parquet') return loadParquetFile(file);
+  throw new Error(`Unsupported format: .${ext}`);
+}
+
+async function loadCsvFile(file) {
+  if (!state.dbReady) {
+    throw new Error('DuckDB is not available. Try refreshing the page.');
+  }
+  const buffer = await file.arrayBuffer();
+  await state.db.registerFileBuffer('input_data.csv', new Uint8Array(buffer));
+  const result = await state.conn.query(
+    `SELECT * FROM read_csv_auto('input_data.csv', header=true, sample_size=-1, all_varchar=true)`
+  );
+  const fieldNames = result.schema.fields.map(f => f.name);
+  const rows = result.toArray().map(arrowRow => {
+    const obj = {};
+    fieldNames.forEach(name => {
+      const val = arrowRow[name];
+      obj[name] = val == null ? '' : String(val);
+    });
+    return obj;
+  });
+  return { rows, loadedVia: 'DuckDB-WASM' };
+}
+
+async function loadJsonFile(file) {
+  const text = await file.text();
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('The file could not be parsed as JSON. Make sure it is a valid JSON array of objects.');
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error('JSON import expects an array of objects at the top level.');
+  }
+  if (!parsed.length) {
+    throw new Error('The JSON array is empty.');
+  }
+  const rows = parsed.map(item => {
+    const row = {};
+    Object.entries(item || {}).forEach(([key, val]) => {
+      row[key] = val == null ? '' : (typeof val === 'object' ? JSON.stringify(val) : String(val));
+    });
+    return row;
+  });
+  return { rows, loadedVia: 'JSON parser' };
+}
+
+async function loadGeoJsonFile(file) {
+  const text = await file.text();
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('The file could not be parsed as GeoJSON. Make sure it is valid JSON.');
+  }
+  let features;
+  if (parsed.type === 'FeatureCollection' && Array.isArray(parsed.features)) {
+    features = parsed.features;
+  } else if (parsed.type === 'Feature') {
+    features = [parsed];
+  } else {
+    throw new Error('GeoJSON import expects a FeatureCollection or Feature at the top level.');
+  }
+  if (!features.length) {
+    throw new Error('The GeoJSON file contains no features.');
+  }
+  const rows = features.map(feature => {
+    const props = feature.properties ? { ...feature.properties } : {};
+    // Extract coordinates from Point geometry if lat/lon are not already in properties
+    if (feature.geometry?.type === 'Point' && Array.isArray(feature.geometry.coordinates)) {
+      const [lon, lat] = feature.geometry.coordinates;
+      const hasLon = ['longitude', 'lon', 'lng', 'x', 'xcoord'].some(k => k in props);
+      const hasLat = ['latitude', 'lat', 'y', 'ycoord'].some(k => k in props);
+      if (!hasLon) props.longitude = lon != null ? String(lon) : '';
+      if (!hasLat) props.latitude = lat != null ? String(lat) : '';
+    }
+    const row = {};
+    Object.entries(props).forEach(([key, val]) => {
+      row[key] = val == null ? '' : (typeof val === 'object' ? JSON.stringify(val) : String(val));
+    });
+    return row;
+  });
+  return { rows, loadedVia: 'GeoJSON parser' };
+}
+
+async function loadParquetFile(file) {
+  if (!state.dbReady) {
+    throw new Error('DuckDB is not available. Try refreshing the page.');
+  }
+  const buffer = await file.arrayBuffer();
+  await state.db.registerFileBuffer('input_data.parquet', new Uint8Array(buffer));
+  try {
+    // Introspect schema so date/timestamp columns are cast to text at the SQL level,
+    // avoiding Arrow BigInt or Date objects reaching JS.
+    const desc = await state.conn.query(`DESCRIBE SELECT * FROM read_parquet('input_data.parquet')`);
+    const colExprs = desc.toArray().map(r => {
+      const name = String(r.column_name);
+      const type = String(r.column_type).toUpperCase();
+      const q = `"${name.replace(/"/g, '""')}"`;
+      const isDateTime = type === 'DATE' || type === 'TIME' ||
+                         type.startsWith('TIMESTAMP') || type.startsWith('INTERVAL');
+      return isDateTime ? `CAST(${q} AS VARCHAR) AS ${q}` : q;
+    });
+    const result = await state.conn.query(
+      `SELECT ${colExprs.join(', ')} FROM read_parquet('input_data.parquet')`
+    );
+    const fieldNames = result.schema.fields.map(f => f.name);
+    const rows = result.toArray().map(arrowRow => {
+      const obj = {};
+      fieldNames.forEach(name => {
+        const val = arrowRow[name];
+        if (val == null) {
+          obj[name] = '';
+        } else if (typeof val === 'bigint') {
+          // Fallback for any BigInt not caught by the CAST above (Timestamp[us])
+          const ms = Number(val / 1000n);
+          const d = new Date(ms);
+          if (!isNaN(d.getTime())) {
+            const p = n => String(n).padStart(2, '0');
+            obj[name] = `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+          } else {
+            obj[name] = String(val);
+          }
+        } else {
+          obj[name] = String(val);
+        }
+      });
+      return obj;
+    });
+    return { rows, loadedVia: 'DuckDB-WASM (Parquet)' };
+  } finally {
+    await state.db.dropFile('input_data.parquet').catch(() => {});
   }
 }
 
@@ -518,11 +661,20 @@ function populateCoordinateSelectors(headers) {
   latSelect.innerHTML = options.join('');
   lonSelect.innerHTML = options.join('');
 
-  const guessedLat = guessCoordinateField(headers, ['latitude', 'lat', 'ycoord', 'y_coordinate']);
-  const guessedLon = guessCoordinateField(headers, ['longitude', 'lon', 'lng', 'xcoord', 'x_coordinate']);
+  const guessedLat = guessCoordinateField(headers, ['latitude', 'lat', 'ycoord', 'y_coordinate'], ['y']);
+  const guessedLon = guessCoordinateField(headers, ['longitude', 'lon', 'lng', 'xcoord', 'x_coordinate'], ['x']);
 
   if (guessedLat) latSelect.value = guessedLat;
   if (guessedLon) lonSelect.value = guessedLon;
+
+  const wktSelect = document.getElementById('wktSelect');
+  if (wktSelect) {
+    wktSelect.innerHTML = ['<option value="">\u2014 select a column \u2014</option>']
+      .concat(headers.map(h => `<option value="${escapeAttribute(h)}">${escapeHtml(h)}</option>`))
+      .join('');
+    const guessedWkt = guessWktColumn(headers, state.workingRows);
+    if (guessedWkt) wktSelect.value = guessedWkt;
+  }
 }
 
 function renderAttributeTable(filterText = '') {
@@ -569,9 +721,13 @@ function updateSelectionSummary() {
 }
 
 function canAdvanceFromStep1() {
+  if (!state.workingRows.length) return false;
+  if (state.coordinateMode === 'wkt' || state.coordinateMode === 'other') {
+    return Boolean(state.wktColumn && state.wktDerivedCols.lat && state.wktDerivedCols.lon);
+  }
   const latField = document.getElementById('latSelect')?.value;
   const lonField = document.getElementById('lonSelect')?.value;
-  return Boolean(state.workingRows.length && latField && lonField && latField !== lonField);
+  return Boolean(latField && lonField && latField !== lonField);
 }
 
 function canAccessStep3() {
@@ -654,7 +810,7 @@ function buildTabulatorColumns(columnsToShow) {
       cssClass: 'row-number-cell'
     },
     ...columnsToShow.map(name => ({
-      title: name,
+      title: name.toUpperCase(),
       field: name,
       headerSort: false,
       minWidth: 140,
@@ -782,8 +938,9 @@ async function processCsv() {
     state.lastProcessedAt = new Date();
     selectedKeys.forEach(key => state.processedKeys.add(key));
 
-    // Stamp every row with the local processing date
-    const dateStamp = state.lastProcessedAt.toLocaleDateString('en-CA'); // YYYY-MM-DD
+    // Stamp every row with the local processing date (YYYY-MM-DD)
+    const _d = state.lastProcessedAt;
+    const dateStamp = `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, '0')}-${String(_d.getDate()).padStart(2, '0')}`;
     state.workingRows.forEach(row => { row.date_processed = dateStamp; });
     renderReviewTable();
     renderExportSummary();
@@ -1309,14 +1466,16 @@ function normalizeRow(row, headerMap) {
   return normalizedRow;
 }
 
-function guessCoordinateField(headers, candidates) {
+function guessCoordinateField(headers, candidates, exactOnlyCandidates = []) {
   const lowered = headers.map(header => ({ raw: header, value: String(header).toLowerCase() }));
 
-  for (const candidate of candidates) {
+  // Exact match: all candidates including exact-only ones
+  for (const candidate of [...candidates, ...exactOnlyCandidates]) {
     const exact = lowered.find(header => header.value === candidate);
     if (exact) return exact.raw;
   }
 
+  // Partial match: regular candidates only (exact-only candidates are too short/ambiguous)
   for (const candidate of candidates) {
     const partial = lowered.find(header => header.value.includes(candidate));
     if (partial) return partial.raw;
@@ -1396,6 +1555,171 @@ function logProcessConsole(message) {
   state.logLines = state.logLines.slice(-80);
   el.textContent = state.logLines.join('\n');
   el.scrollTop = el.scrollHeight;
+}
+
+function parseWktPoint(value) {
+  const match = String(value ?? '').match(
+    /POINT\s*(?:Z\s*|M\s*|ZM\s*)?\(\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s+(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/i
+  );
+  if (!match) return null;
+  const lon = Number(match[1]);
+  const lat = Number(match[2]);
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+  return { lon, lat };
+}
+
+function deriveUniqueName(baseName, existingSet) {
+  if (!existingSet.has(baseName)) return baseName;
+  let suffix = 2;
+  while (existingSet.has(`${baseName}_${suffix}`)) suffix += 1;
+  return `${baseName}_${suffix}`;
+}
+
+function guessWktColumn(headers, rows) {
+  const exactNames = ['geometry', 'geom', 'shape', 'wkt', 'the_geom', 'geo', 'pt'];
+  const lower = headers.map(h => ({ raw: h, lc: String(h).toLowerCase() }));
+  for (const name of exactNames) {
+    const found = lower.find(h => h.lc === name);
+    if (found) return found.raw;
+  }
+  // Value scan: check first 5 rows for any column containing a parseable WKT POINT
+  const sample = (rows || []).slice(0, 5);
+  for (const col of headers) {
+    if (sample.some(row => parseWktPoint(row[col]) !== null)) return col;
+  }
+  return '';
+}
+
+function applyWktColumn(colName, swapCoords = false) {
+  removeWktDerivedCols();
+
+  if (!colName || !state.workingRows.length) {
+    state.wktColumn = null;
+    updateUIState();
+    return;
+  }
+
+  const existingCols = new Set(state.originalColumnOrder);
+  const latColName = deriveUniqueName('wkt_latitude', existingCols);
+  const lonColName = deriveUniqueName('wkt_longitude', existingCols);
+
+  let parseFailCount = 0;
+  state.workingRows.forEach(row => {
+    const parsed = parseWktPoint(row[colName]);
+    if (parsed) {
+      row[latColName] = swapCoords ? String(parsed.lon) : String(parsed.lat);
+      row[lonColName] = swapCoords ? String(parsed.lat) : String(parsed.lon);
+    } else {
+      row[latColName] = '';
+      row[lonColName] = '';
+      parseFailCount += 1;
+    }
+  });
+
+  state.originalColumnOrder.push(lonColName, latColName);
+  state.selectedColumns.add(latColName);
+  state.selectedColumns.add(lonColName);
+  state.headerMap.push(
+    { original: lonColName, normalized: lonColName },
+    { original: latColName, normalized: latColName }
+  );
+
+  state.wktColumn = colName;
+  state.wktDerivedCols = { lat: latColName, lon: lonColName };
+
+  // Point the (hidden) lat/lon selects at the derived columns
+  const latSel = document.getElementById('latSelect');
+  const lonSel = document.getElementById('lonSelect');
+  for (const [sel, val] of [[latSel, latColName], [lonSel, lonColName]]) {
+    if (!sel) continue;
+    if (!Array.from(sel.options).some(o => o.value === val)) {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = val;
+      sel.appendChild(opt);
+    }
+    sel.value = val;
+  }
+
+  const successCount = state.workingRows.length - parseFailCount;
+  const statusEl = document.getElementById('wktParseStatus');
+  if (statusEl) {
+    if (parseFailCount) {
+      statusEl.className = 'small text-warning mt-1';
+      statusEl.textContent = `${successCount.toLocaleString()} of ${state.workingRows.length.toLocaleString()} rows parsed. ${parseFailCount.toLocaleString()} could not be parsed and will be flagged during processing.`;
+    } else {
+      statusEl.className = 'small text-success mt-1';
+      statusEl.textContent = `All ${successCount.toLocaleString()} row(s) parsed successfully.`;
+    }
+    statusEl.classList.remove('d-none');
+  }
+
+  if (parseFailCount) {
+    logProcessConsole(`WKT "${colName}": ${successCount.toLocaleString()} parsed, ${parseFailCount.toLocaleString()} failed.`);
+  } else {
+    logProcessConsole(`WKT "${colName}": all ${successCount.toLocaleString()} row(s) parsed \u2192 ${latColName}, ${lonColName}.`);
+  }
+
+  renderColumnSelector(state.headerMap);
+  renderLoadPreviewTable(state.workingRows, 'Spreadsheet preview');
+  renderReviewTable();
+  updateUIState();
+}
+
+function removeWktDerivedCols() {
+  const { lat, lon } = state.wktDerivedCols;
+  if (!lat && !lon) return;
+
+  const toDrop = new Set([lat, lon].filter(Boolean));
+  state.workingRows.forEach(row => {
+    toDrop.forEach(col => { delete row[col]; });
+  });
+  state.originalColumnOrder = state.originalColumnOrder.filter(c => !toDrop.has(c));
+  toDrop.forEach(c => state.selectedColumns.delete(c));
+  state.headerMap = state.headerMap.filter(item => !toDrop.has(item.normalized));
+
+  const latSel = document.getElementById('latSelect');
+  const lonSel = document.getElementById('lonSelect');
+  [latSel, lonSel].forEach(sel => {
+    if (!sel) return;
+    Array.from(sel.options).filter(o => toDrop.has(o.value)).forEach(o => o.remove());
+    if (toDrop.has(sel.value)) sel.value = '';
+  });
+
+  const statusEl = document.getElementById('wktParseStatus');
+  if (statusEl) statusEl.classList.add('d-none');
+
+  state.wktColumn = null;
+  state.wktDerivedCols = { lat: null, lon: null };
+}
+
+function switchCoordinateMode(mode) {
+  state.coordinateMode = mode;
+  const separateFields = document.getElementById('coordSeparateFields');
+  const wktFields = document.getElementById('coordWktFields');
+  const hintStandard = document.getElementById('wktHintStandard');
+  const hintOther = document.getElementById('wktHintOther');
+
+  if (mode === 'wkt' || mode === 'other') {
+    separateFields?.classList.add('d-none');
+    wktFields?.classList.remove('d-none');
+    hintStandard?.classList.toggle('d-none', mode === 'other');
+    hintOther?.classList.toggle('d-none', mode === 'wkt');
+    const wktSel = document.getElementById('wktSelect');
+    if (wktSel?.value && state.workingRows.length) {
+      applyWktColumn(wktSel.value, mode === 'other');
+    } else {
+      updateUIState();
+    }
+  } else {
+    wktFields?.classList.add('d-none');
+    separateFields?.classList.remove('d-none');
+    removeWktDerivedCols();
+    refreshColumnLocks();
+    renderLoadPreviewTable(state.workingRows, state.workingRows.length ? 'Spreadsheet preview' : 'No file loaded');
+    renderReviewTable();
+    updateUIState();
+  }
 }
 
 function parseNumber(value) {

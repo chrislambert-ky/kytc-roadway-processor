@@ -255,51 +255,69 @@ code {
 
 .workflow-tabs {
   display: flex;
-  gap: 0.4rem;
   margin-bottom: 0.75rem;
+  gap: 0;
 }
 
 .workflow-tab {
   flex: 1 1 0;
   min-width: 0;
-  text-align: left;
+  position: relative;
+  text-align: center;
   background: #ffffff;
-  border: 1px solid #d7e0ea;
-  border-radius: 0.7rem;
-  padding: 0.55rem 0.75rem;
+  border: none;
+  padding: 0.55rem 1.5rem 0.55rem 1.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  transition: flex 0.28s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%);
+  transition: background 0.2s ease, color 0.2s ease;
+  border-top: 1px solid #d7e0ea;
+  border-bottom: 1px solid #d7e0ea;
+}
+
+.workflow-tab:first-child {
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%);
+  border-left: 1px solid #d7e0ea;
+  border-radius: 0.5rem 0 0 0.5rem;
+}
+
+.workflow-tab:last-child {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 14px 50%);
+  border-right: 1px solid #d7e0ea;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.workflow-tab .workflow-step-num {
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
 }
 
 .workflow-tab .workflow-title {
   font-weight: 700;
+  font-size: 0.9rem;
   color: #1f2937;
 }
 
 .workflow-tab .workflow-subtitle {
   display: none;
-  font-size: 0.8rem;
-  line-height: 1.35;
-  color: #5f6b7a;
 }
 
 .workflow-tab.is-active {
-  flex: 5 1 0;
   background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
-  border-color: #0d6efd;
-  box-shadow: 0 6px 14px rgba(13, 110, 253, 0.15);
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
+  z-index: 1;
 }
 
 .workflow-tab.is-active .workflow-step-num,
-.workflow-tab.is-active .workflow-title,
-.workflow-tab.is-active .workflow-subtitle {
+.workflow-tab.is-active .workflow-title {
   color: #fff;
-}
-
-.workflow-tab.is-active .workflow-subtitle {
-  display: block;
 }
 
 .workflow-viewport {

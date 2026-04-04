@@ -54,22 +54,18 @@
       <button class="workflow-tab is-active" type="button" data-step="1">
         <span class="workflow-step-num">Step 1</span>
         <span class="workflow-title">Load Data</span>
-        <span class="workflow-subtitle">Upload CSV, preview columns, map latitude and longitude.</span>
       </button>
       <button class="workflow-tab" type="button" data-step="2">
         <span class="workflow-step-num">Step 2</span>
         <span class="workflow-title">Transform</span>
-        <span class="workflow-subtitle">Choose the roadway fields to append. Defaults stay locked.</span>
       </button>
       <button class="workflow-tab" type="button" data-step="3">
         <span class="workflow-step-num">Step 3</span>
         <span class="workflow-title">Process / Review</span>
-        <span class="workflow-subtitle">Run in batches, review the filled-in values, and refine if needed.</span>
       </button>
       <button class="workflow-tab" type="button" data-step="4">
         <span class="workflow-step-num">Step 4</span>
         <span class="workflow-title">Extract</span>
-        <span class="workflow-subtitle">Download the processed result in the format you want.</span>
       </button>
     </div>
 
@@ -83,35 +79,66 @@
                   <div class="d-flex justify-content-between align-items-start mb-2">
                     <div>
                       <p class="section-label mb-1">Step 1</p>
-                      <h2 class="h5 mb-1">Load CSV</h2>
+                      <h2 class="h5 mb-1">Load file</h2>
                     </div>
-                    <span class="badge text-bg-light">CSV only</span>
+                    <span class="badge text-bg-light">CSV &middot; JSON &middot; GeoJSON &middot; Parquet</span>
                   </div>
 
                   <div class="alert alert-light border shadow-sm small-note mt-2 mb-3" role="alert">
-                    <strong>Before you upload:</strong> use a clean CSV with proper headers, one record per row,
-                    and valid latitude/longitude values. Spaces will be normalized to <code>_</code>.
+                    <strong>Supported formats:</strong> CSV, JSON (array of objects), GeoJSON (FeatureCollection of Points), and Parquet. Each row needs valid latitude/longitude values. Column headers with spaces are normalized to <code>_</code>.
                   </div>
 
-                  <div class="section-label mb-2">Load CSV</div>
+                  <div class="section-label mb-2">Load file</div>
                   <div id="dropZone" class="drop-zone w-100" role="button" tabindex="0">
                     <span class="drop-zone-icon"><i class="bi bi-cloud-arrow-up"></i></span>
-                    <span class="drop-zone-text">Click to browse or drag &amp; drop your CSV here</span>
+                    <span class="drop-zone-text">Click to browse or drag &amp; drop a file here</span>
                     <span class="drop-zone-subtext">The file stays in your browser until you process it.</span>
                     <button id="clearFileBtn" class="drop-zone-clear" type="button" title="Unload file" aria-label="Unload file">&times;</button>
                   </div>
-                  <input id="fileInput" type="file" accept=".csv,text/csv" hidden>
+                  <input id="fileInput" type="file" accept=".csv,.json,.geojson,.parquet,text/csv" hidden>
 
                   <div id="fileStatus" class="status-pill mt-3">No file loaded yet.</div>
 
-                  <div class="row g-2 mt-1">
-                    <div class="col-sm-6 col-xl-12">
-                      <label class="form-label mono-label" for="latSelect">Latitude column</label>
-                      <select id="latSelect" class="form-select"></select>
+                  <div class="mt-2">
+                    <label class="form-label mono-label mb-1">Coordinate input</label>
+                    <div class="d-flex gap-3 mb-1">
+                      <div class="form-check mb-0">
+                        <input class="form-check-input" type="radio" name="coordMode" id="coordModeSeparate" value="separate" checked>
+                        <label class="form-check-label small" for="coordModeSeparate">Separate latitude / longitude columns</label>
+                      </div>
                     </div>
-                    <div class="col-sm-6 col-xl-12">
-                      <label class="form-label mono-label" for="lonSelect">Longitude column</label>
-                      <select id="lonSelect" class="form-select"></select>
+                    <div class="d-flex gap-3 mb-2">
+                      <div class="form-check mb-0">
+                        <input class="form-check-input" type="radio" name="coordMode" id="coordModeWkt" value="wkt">
+                        <label class="form-check-label small" for="coordModeWkt">WKT Point column</label>
+                      </div>
+                      <div class="form-check mb-0">
+                        <input class="form-check-input" type="radio" name="coordMode" id="coordModeOther" value="other">
+                        <label class="form-check-label small" for="coordModeOther">Point column</label>
+                      </div>
+                    </div>
+
+                    <p class="form-text text-secondary small mb-2">Kentucky latitude is typically 36–39 and longitude is typically −89 to −82.</p>
+
+                    <div id="coordSeparateFields">
+                      <div class="row g-2">
+                        <div class="col-sm-6 col-xl-12">
+                          <label class="form-label mono-label" for="latSelect">Latitude column</label>
+                          <select id="latSelect" class="form-select"></select>
+                        </div>
+                        <div class="col-sm-6 col-xl-12">
+                          <label class="form-label mono-label" for="lonSelect">Longitude column</label>
+                          <select id="lonSelect" class="form-select"></select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div id="coordWktFields" class="d-none">
+                      <label class="form-label mono-label" for="wktSelect">Point column</label>
+                      <select id="wktSelect" class="form-select"></select>
+                      <p id="wktHintStandard" class="form-text text-secondary small mt-1 mb-0">Format: <code>POINT (longitude latitude)</code> — easting (X) comes before northing (Y).</p>
+                      <p id="wktHintOther" class="form-text text-secondary small mt-1 mb-0 d-none">Format: <code>POINT (latitude longitude)</code> — latitude comes before longitude.</p>
+                      <div id="wktParseStatus" class="d-none small mt-1"></div>
                     </div>
                   </div>
                 </div>
@@ -378,7 +405,7 @@
               <span class="about-step-num">1</span>
               <div>
                 <strong>Load Data</strong>
-                <p>Upload a CSV file containing point coordinates. Files are loaded via DuckDB-WASM, an in-browser SQL engine. The tool auto-detects latitude and longitude columns and shows a live spreadsheet preview. Use the column selector to show or hide fields before processing. Column headers with spaces are automatically normalized.</p>
+                <p>Upload a file containing point coordinates. Supported formats: <strong>CSV</strong> (via DuckDB-WASM), <strong>JSON</strong> (array of objects), <strong>GeoJSON</strong> (FeatureCollection of Points &mdash; coordinates are automatically extracted), and <strong>Parquet</strong> (via DuckDB-WASM). The tool auto-detects latitude and longitude columns and shows a live spreadsheet preview. Datasets with a WKT <code>POINT (longitude latitude)</code> geometry column are also supported &mdash; select <em>WKT Point column</em> mode to derive lat/lon automatically. Use the column selector to show or hide fields before processing. Column headers with spaces are automatically normalized.</p>
               </div>
             </div>
             <div class="about-step">
@@ -407,10 +434,10 @@
           <h3 class="about-section-heading">Technical notes</h3>
           <ul class="about-notes">
             <li>All processing happens entirely in your browser — no data is sent to any server other than the KYTC Spatial API.</li>
-            <li>CSV files are loaded via <strong>DuckDB-WASM</strong>, an in-browser SQL engine. DuckDB is required — if it fails to initialize, file loading will be unavailable.</li>
+            <li>CSV and Parquet files are loaded via <strong>DuckDB-WASM</strong>, an in-browser SQL engine. JSON and GeoJSON files are parsed directly in the browser without DuckDB. If DuckDB fails to initialize, CSV and Parquet loading will be unavailable.</li>
             <li>Parquet and GeoParquet export also use DuckDB-WASM.</li>
             <li>Excel export uses <strong>SheetJS</strong>. All other formats are generated with plain JavaScript.</li>
-            <li>A <code>date_processed</code> column is automatically appended to every row, recording the local date the API was queried — useful for tracking which version of the linear referencing system was used.</li>
+            <li>A <code>date_processed</code> column is automatically appended to every row, recording the local date (<code>YYYY-MM-DD</code>) the API was queried — useful for tracking which weekly version of the linear referencing system was used.</li>
             <li>Column headers are automatically normalized: leading/trailing spaces are trimmed and internal spaces are replaced with underscores.</li>
           </ul>
 

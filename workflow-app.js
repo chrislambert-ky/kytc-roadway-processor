@@ -70,6 +70,16 @@ function bindWorkflowEvents() {
   document.querySelectorAll('.workflow-tab').forEach(button => {
     button.addEventListener('click', () => goToStep(Number(button.dataset.step)));
   });
+  // Prevent info icon clicks from triggering the tab
+  document.querySelectorAll('.tab-info-btn').forEach(el => {
+    el.addEventListener('click', e => e.stopPropagation());
+  });
+  // Initialize Bootstrap tooltips on the info icons
+  document.querySelectorAll('.tab-info-btn[data-bs-toggle="tooltip"]').forEach(el => {
+    new bootstrap.Tooltip(el, { trigger: 'hover focus', container: 'body' });
+  });
+  document.getElementById('backStepBtn')?.addEventListener('click', () => goToStep(state.currentStep - 1));
+  document.getElementById('nextStepBtn')?.addEventListener('click', () => goToStep(state.currentStep + 1));
 }
 
 function bindUploadEvents() {
@@ -752,6 +762,11 @@ function updateUIState() {
   if (toStep3Btn) toStep3Btn.disabled = !step3Ready;
   if (toStep4Btn) toStep4Btn.disabled = !step4Ready;
   if (processBtn) processBtn.disabled = !step3Ready || state.isProcessing;
+
+  const backBtn = document.getElementById('backStepBtn');
+  const nextBtn = document.getElementById('nextStepBtn');
+  if (backBtn) backBtn.disabled = state.currentStep <= 1;
+  if (nextBtn) nextBtn.disabled = state.currentStep >= 4;
 
   document.querySelectorAll('.export-dl-btn').forEach(btn => {
     const needsDuckdb = ['parquet', 'geoparquet'].includes(btn.dataset.format);

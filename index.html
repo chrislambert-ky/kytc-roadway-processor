@@ -39,7 +39,13 @@
             <span id="duckdbStatusText">DuckDB</span>
           </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 align-items-center">
+          <button class="btn btn-sm nav-step-btn" type="button" id="backStepBtn" title="Previous step">
+            <i class="bi bi-chevron-left"></i> Back
+          </button>
+          <button class="btn btn-sm nav-step-btn" type="button" id="nextStepBtn" title="Next step">
+            Next <i class="bi bi-chevron-right"></i>
+          </button>
           <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#aboutModal">
             <i class="bi bi-info-circle me-1"></i>About
           </button>
@@ -53,19 +59,39 @@
     <div class="workflow-tabs" id="workflowTabs">
       <button class="workflow-tab is-active" type="button" data-step="1">
         <span class="workflow-step-num">Step 1</span>
-        <span class="workflow-title">Load Data</span>
+        <span class="workflow-title">Load Data
+          <span class="tab-info-btn" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true"
+            title="Upload a file containing coordinate data.<br>Map your latitude &amp; longitude columns (or a WKT point column) before advancing.<br><em>No prerequisites.</em>">
+            <i class="bi bi-info-circle"></i>
+          </span>
+        </span>
       </button>
       <button class="workflow-tab" type="button" data-step="2">
         <span class="workflow-step-num">Step 2</span>
-        <span class="workflow-title">Transform</span>
+        <span class="workflow-title">Transform
+          <span class="tab-info-btn" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true"
+            title="Choose which KYTC LRS attributes to append to each row during processing. Defaults are pre-selected and locked; optional fields can be toggled or searched.<br><em>Prerequisite: a loaded file with mapped coordinates from Step 1.</em>">
+            <i class="bi bi-info-circle"></i>
+          </span>
+        </span>
       </button>
       <button class="workflow-tab" type="button" data-step="3">
         <span class="workflow-step-num">Step 3</span>
-        <span class="workflow-title">Process / Review</span>
+        <span class="workflow-title">Process / Review
+          <span class="tab-info-btn" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true"
+            title="Send coordinates to the KYTC Spatial API and review returned roadway attributes.<br><em>Prerequisites: loaded file with mapped coordinates and at least one selected attribute.</em>">
+            <i class="bi bi-info-circle"></i>
+          </span>
+        </span>
       </button>
       <button class="workflow-tab" type="button" data-step="4">
         <span class="workflow-step-num">Step 4</span>
-        <span class="workflow-title">Extract</span>
+        <span class="workflow-title">Extract
+          <span class="tab-info-btn" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true"
+            title="Export processed results as CSV, JSON, GeoJSON, KML, Parquet, GeoParquet, or Excel.<br><em>Prerequisite: at least one processed record from Step 3.</em>">
+            <i class="bi bi-info-circle"></i>
+          </span>
+        </span>
       </button>
     </div>
 
@@ -405,28 +431,34 @@
               <span class="about-step-num">1</span>
               <div>
                 <strong>Load Data</strong>
-                <p>Upload a file containing point coordinates. Supported formats: <strong>CSV</strong> (via DuckDB-WASM), <strong>JSON</strong> (array of objects), <strong>GeoJSON</strong> (FeatureCollection of Points &mdash; coordinates are automatically extracted), and <strong>Parquet</strong> (via DuckDB-WASM). The tool auto-detects latitude and longitude columns and shows a live spreadsheet preview. Datasets with a WKT <code>POINT (longitude latitude)</code> geometry column are also supported &mdash; select <em>WKT Point column</em> mode to derive lat/lon automatically. Use the column selector to show or hide fields before processing. Column headers with spaces are automatically normalized.</p>
+                <p>Upload a file containing point coordinates. Supported input formats:<br>
+                <strong>CSV, JSON, GeoJSON, Parquet</strong></p>
+                <br>
+                <p><em>Note:</em> The tool auto-detects latitude and longitude columns and shows a live spreadsheet preview. Three coordinate input modes are supported: <em>Separate lat/lon columns</em>, <em>WKT Point column</em> (<code>POINT (longitude latitude)</code>), and <em>Point column</em> (a single column containing <code>latitude,longitude</code> or <code>longitude,latitude</code>). Column headers with spaces are automatically normalized to underscores. Use the <strong>column selector</strong> chip bar to choose which source columns to carry through to the output. Columns can be toggled on or off individually or all at once before processing.</p>
               </div>
             </div>
             <div class="about-step">
               <span class="about-step-num">2</span>
               <div>
                 <strong>Transform</strong>
-                <p>Choose which KYTC LRS (Linear Referencing System) attributes to append to each row. A curated set of defaults — District, County, Route Label, Road Name, Cardinality, Direction, Milepoint, Snap Distance, and Snap Probability — are pre-selected and locked. Additional fields from the full API schema can be toggled on or off, or searched by name.</p>
+                <p>Choose which KYTC LRS (Linear Referencing System) attributes to append to each row. A curated set of defaults &mdash; District, County, Route Label, Road Name, Cardinality, Direction, Milepoint, Snap Distance, and Snap Probability &mdash; are pre-selected and locked. Additional fields from the full API schema can be toggled on or off, or searched by name. Changes here can be made at any time, even after an initial processing run.</p>
               </div>
             </div>
             <div class="about-step">
               <span class="about-step-num">3</span>
               <div>
                 <strong>Process &amp; Review</strong>
-                <p>The tool sends each coordinate pair to the KYTC Spatial API in parallel async batches of up to 500 requests with automatic retry logic. Progress is logged in real time. Rows that cannot be matched are flagged with a status code rather than silently dropped. You can return to Step 2, change optional attributes, and re-run without losing previously processed values.</p>
+                <p>The tool sends each coordinate pair to the KYTC Spatial API in parallel async batches of up to 500 requests with automatic retry logic. Progress is logged in real time in the request console. Rows that cannot be matched are flagged with a status code rather than silently dropped. You can return to Step 2, change optional attributes, and re-run without losing previously processed values.</p>
               </div>
             </div>
             <div class="about-step">
               <span class="about-step-num">4</span>
               <div>
                 <strong>Extract</strong>
-                <p>Download the result in your preferred format: CSV, JSON, GeoJSON, KML, Excel (xlsx), Parquet, or GeoParquet. Parquet and GeoParquet are generated via DuckDB-WASM. A 10-row preview updates as you switch formats.</p>
+                <p>Download the processed result in your preferred format. Available formats:<br>
+                <strong>CSV, JSON, GeoJSON, KML, Excel, Parquet, GeoParquet</strong></p>
+                <br>
+                <p><em>Note:</em> A 10-row preview updates as you switch formats. You can select which output columns to include before downloading. Parquet and GeoParquet are generated via DuckDB-WASM; Excel via SheetJS. All other formats are produced directly in the browser with no additional dependencies.</p>
               </div>
             </div>
           </div>
@@ -434,16 +466,14 @@
           <h3 class="about-section-heading">Technical notes</h3>
           <ul class="about-notes">
             <li>All processing happens entirely in your browser — no data is sent to any server other than the KYTC Spatial API.</li>
-            <li>CSV and Parquet files are loaded via <strong>DuckDB-WASM</strong>, an in-browser SQL engine. JSON and GeoJSON files are parsed directly in the browser without DuckDB. If DuckDB fails to initialize, CSV and Parquet loading will be unavailable.</li>
-            <li>Parquet and GeoParquet export also use DuckDB-WASM.</li>
-            <li>Excel export uses <strong>SheetJS</strong>. All other formats are generated with plain JavaScript.</li>
-            <li>A <code>date_processed</code> column is automatically appended to every row, recording the local date (<code>YYYY-MM-DD</code>) the API was queried — useful for tracking which weekly version of the linear referencing system was used.</li>
+            <li>Files are loaded via <strong>DuckDB-WASM</strong> (CSV and Parquet) or parsed directly in the browser (JSON, GeoJSON). If DuckDB fails to initialize, CSV and Parquet loading will be unavailable.</li>
+            <li>Parquet and GeoParquet export also use DuckDB-WASM. Excel export uses <strong>SheetJS</strong>. All other formats are generated with plain JavaScript.</li>
+            <li>A <code>date_processed</code> column is automatically appended to every row, recording the local date (<code>YYYY-MM-DD</code>) the API was queried &mdash; useful for tracking which weekly version of the linear referencing system was used.</li>
             <li>Column headers are automatically normalized: leading/trailing spaces are trimmed and internal spaces are replaced with underscores.</li>
+            <li>Use the <strong>&lsaquo; Back</strong> and <strong>Next &rsaquo;</strong> buttons in the header as a quick alternative to clicking the step tabs directly.</li>
+            <li>Looking for data to try? Visit <a href="https://trak.kytc.ky.gov/data-hub" target="_blank" rel="noreferrer">KYTC TRAK Data Hub.</a>.</li>
+            <li>This project can be found at <a href="https://github.com/chrislambert-ky/kytc-roadway-processor" target="_blank" rel="noreferrer"><i class="bi bi-github me-1"></i>github.com/chrislambert-ky/kytc-roadway-processor</a></li>
           </ul>
-
-          <h3 class="about-section-heading">Sample data</h3>
-          <p class="about-notes">Looking for data to try? Visit <a href="https://trak.kytc.ky.gov/data-hub" target="_blank" rel="noreferrer">KYTC TRAK Data Hub</a> and download bridge data in CSV format.</p>
-
 
         </div>
         <div class="modal-footer about-modal-footer">

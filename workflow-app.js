@@ -975,32 +975,67 @@ async function processCsv() {
 async function processRowsAsync(latField, lonField, selectedKeys) {
   const outputRows = state.workingRows.map(row => ({ ...row }));
   const total = outputRows.length;
-  const batchSize = Math.min(500, total || 1);
-  const totalBatches = Math.ceil(total / batchSize);
-  let successCount = 0;
-  let issueCount = 0;
+
+  // Deduplicate by coordinate pair — only unique lat/lon sets will hit the API.
+  // Duplicate rows will inherit the result from their matching unique row.
+  const coordKeyMap = new Map(); // "lat|lon" → [rowIndices]
+  outputRows.forEach((row, i) => {
+    const key = `${parseNumber(row[latField])}|${parseNumber(row[lonField])}`;
+    if (!coordKeyMap.has(key)) coordKeyMap.set(key, []);
+    coordKeyMap.get(key).push(i);
+  });
+
+  const uniqueIndices = [...coordKeyMap.values()].map(indices => indices[0]);
+  const uniqueTotal = uniqueIndices.length;
+  const dupCount = total - uniqueTotal;
+
+  if (dupCount > 0) {
+    logProcessConsole(`Dedup: ${uniqueTotal.toLocaleString()} unique coordinate pair(s) from ${total.toLocaleString()} total row(s) — ${dupCount.toLocaleString()} duplicate(s) will inherit results.`);
+  }
+
+  const batchSize = Math.min(500, uniqueTotal || 1);
+  const totalBatches = Math.ceil(uniqueTotal / batchSize);
 
   logProcessConsole(`Async batch size: ${batchSize} row(s) per wave.`);
 
-  for (let start = 0; start < total; start += batchSize) {
+  for (let start = 0; start < uniqueTotal; start += batchSize) {
     const batchNumber = Math.floor(start / batchSize) + 1;
-    const batch = outputRows.slice(start, start + batchSize);
+    const batchIndices = uniqueIndices.slice(start, start + batchSize);
     const results = await Promise.all(
-      batch.map((row, index) => enrichRow(row, start + index, latField, lonField, selectedKeys))
+      batchIndices.map((rowIdx) => enrichRow(outputRows[rowIdx], rowIdx, latField, lonField, selectedKeys))
     );
 
-    results.forEach((result, index) => {
-      outputRows[start + index] = result.row;
-      if (result.ok) successCount += 1;
-      else issueCount += 1;
+    results.forEach((result, i) => {
+      const primaryIdx = batchIndices[i];
+      outputRows[primaryIdx] = result.row;
+
+      // Propagate KYTC attributes to every duplicate sharing the same coordinates.
+      const key = `${parseNumber(result.row[latField])}|${parseNumber(result.row[lonField])}`;
+      const allIndices = coordKeyMap.get(key) || [primaryIdx];
+      allIndices.forEach(idx => {
+        if (idx === primaryIdx) return;
+        outputRows[idx] = { ...outputRows[idx] };
+        selectedKeys.forEach(k => { outputRows[idx][k] = result.row[k]; });
+        outputRows[idx].Request_Id = result.row.Request_Id;
+        outputRows[idx].KYTC_Status = result.row.KYTC_Status;
+        outputRows[idx].KYTC_Error = result.row.KYTC_Error;
+      });
     });
 
     state.workingRows = outputRows;
-    const processed = Math.min(start + batch.length, total);
-    updateReviewTableData(processed, total);
-    updateStatus(`Processed ${processed.toLocaleString()} of ${total.toLocaleString()} row(s)…`, 'info');
-    logProcessConsole(`Batch ${batchNumber} of ${totalBatches} complete (${processed.toLocaleString()} / ${total.toLocaleString()}).`);
+    const processed = Math.min(start + batchIndices.length, uniqueTotal);
+    updateReviewTableData(processed, uniqueTotal);
+    updateStatus(`Processed ${processed.toLocaleString()} of ${uniqueTotal.toLocaleString()} unique pair(s)…`, 'info');
+    logProcessConsole(`Batch ${batchNumber} of ${totalBatches} complete (${processed.toLocaleString()} / ${uniqueTotal.toLocaleString()} unique).`);
   }
+
+  // Count across all rows (including duplicates that inherited their results).
+  let successCount = 0;
+  let issueCount = 0;
+  outputRows.forEach(row => {
+    if (row.KYTC_Status === 'OK') successCount += 1;
+    else issueCount += 1;
+  });
 
   return { outputRows, successCount, issueCount };
 }

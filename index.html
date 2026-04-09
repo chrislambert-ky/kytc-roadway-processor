@@ -88,7 +88,7 @@
         <span class="workflow-step-num">Step 4</span>
         <span class="workflow-title">Extract
           <span class="tab-info-btn" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true"
-            title="Export processed results as CSV, JSON, GeoJSON, KML, Parquet, GeoParquet, or Excel.<br><em>Prerequisite: at least one processed record from Step 3.</em>">
+            title="Export processed results as CSV, JSON, GeoJSON, KML, Parquet, or GeoParquet.<br><em>Prerequisite: at least one processed record from Step 3.</em>">
             <i class="bi bi-info-circle"></i>
           </span>
         </span>
@@ -385,17 +385,6 @@
                         <button class="export-dl-btn" type="button" data-format="geoparquet" title="Download GeoParquet" disabled><i class="bi bi-download"></i></button>
                       </span>
                     </label>
-                    <label class="export-option">
-                      <input type="radio" name="exportFormat" value="xlsx">
-                      <span class="export-option-inner">
-                        <span class="export-option-icon"><i class="bi bi-file-earmark-spreadsheet"></i></span>
-                        <span>
-                          <span class="export-option-title">Excel</span>
-                          <span class="export-option-note">xlsx workbook via SheetJS</span>
-                        </span>
-                        <button class="export-dl-btn" type="button" data-format="xlsx" title="Download Excel" disabled><i class="bi bi-download"></i></button>
-                      </span>
-                    </label>
                   </div>
                 </div>
               </div>
@@ -467,9 +456,9 @@
               <div>
                 <strong>Extract</strong>
                 <p>Download the processed result in your preferred format. Available formats:<br>
-                <strong>CSV, JSON, GeoJSON, KML, Excel, Parquet, GeoParquet</strong></p>
+                <strong>CSV, JSON, GeoJSON, KML, Parquet, GeoParquet</strong></p>
                 <br>
-                <p><em>Note:</em> A 10-row preview updates as you switch formats. You can select which output columns to include before downloading. Parquet and GeoParquet are generated via DuckDB-WASM; Excel via SheetJS. All other formats are produced directly in the browser with no additional dependencies.</p>
+                <p><em>Note:</em> A 10-row preview updates as you switch formats. You can select which output columns to include before downloading. Parquet and GeoParquet are generated via DuckDB-WASM. All other formats are produced directly in the browser with no additional dependencies.</p>
               </div>
             </div>
           </div>
@@ -478,7 +467,7 @@
           <ul class="about-notes">
             <li>All processing happens entirely in your browser — no data is sent to any server other than the KYTC Spatial API. The attribute catalog is also fetched live from the KYTC API on startup, so the field list is always up to date without any manual file maintenance.</li>
             <li>Files are loaded via <strong>DuckDB-WASM</strong> (CSV and Parquet) or parsed directly in the browser (JSON, GeoJSON). If DuckDB fails to initialize, CSV and Parquet loading will be unavailable.</li>
-            <li>Parquet and GeoParquet export also use DuckDB-WASM. Excel export uses <strong>SheetJS</strong>. All other formats are generated with plain JavaScript.</li>
+            <li>Parquet and GeoParquet export use DuckDB-WASM. All other formats are generated with plain JavaScript.</li>
             <li>A <code>date_processed</code> column is automatically appended to every row, recording the local date (<code>YYYY-MM-DD</code>) the API was queried &mdash; useful for tracking which weekly version of the linear referencing system was used.</li>
             <li>Column headers are automatically normalized: leading/trailing spaces are trimmed and internal spaces are replaced with underscores.</li>
             <li>Use the <strong>&lsaquo; Back</strong> and <strong>Next &rsaquo;</strong> buttons in the header as a quick alternative to clicking the step tabs directly.</li>
@@ -506,7 +495,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script type="module" src="workflow-app.js"></script>
 </body>
 </html>

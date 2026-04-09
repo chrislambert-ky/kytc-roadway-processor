@@ -13,7 +13,7 @@ const DEFAULT_ATTRIBUTES = [
   'Snap_Distance_Feet',
   'Snap_Probability'
 ];
-const ACTIVE_EXPORT_FORMATS = new Set(['csv', 'json', 'geojson', 'kml', 'parquet', 'geoparquet', 'xlsx']);
+const ACTIVE_EXPORT_FORMATS = new Set(['csv', 'json', 'geojson', 'kml', 'parquet', 'geoparquet']);
 
 const state = {
   currentStep: 1,
@@ -1237,9 +1237,6 @@ async function downloadFormat(format) {
       updateStatus('Building GeoParquet file via DuckDB-WASM…', 'info');
       await downloadGeoParquet(rows, `kytc-roadway-processed-${stamp}.parquet`);
       break;
-    case 'xlsx':
-      downloadExcel(rows, `kytc-roadway-processed-${stamp}.xlsx`);
-      break;
     default:
       updateStatus('That export format is not ready yet.', 'warning');
       return;
@@ -1380,13 +1377,6 @@ function downloadCsv(rows, filename) {
   });
 
   downloadBlob(lines.join('\n'), filename, 'text/csv;charset=utf-8;');
-}
-
-function downloadExcel(rows, filename) {
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'KYTC Roadway');
-  XLSX.writeFile(wb, filename);
 }
 
 function downloadBlob(content, filename, mimeType) {

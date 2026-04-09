@@ -1,6 +1,7 @@
 import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm';
 
 const KYTC_ENDPOINT = 'https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/api/route/GetRouteInfoByCoordinates';
+const KYTC_KEYS_ENDPOINT = 'https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/api/utilities/GetReturnKeyInfo?service=GetRouteInfoByCoordinates';
 const DEFAULT_ATTRIBUTES = [
   'District_Number',
   'County_Name',
@@ -132,7 +133,7 @@ function bindAttributeEvents() {
   });
 
   document.getElementById('attributeTableBody')?.addEventListener('change', (event) => {
-    if (!event.target.matches('.attr-checkbox') || event.target.disabled) return;
+    if (!event.target.matches('.attr-checkbox')) return;
     const key = event.target.value;
     if (event.target.checked) {
       state.selectedAttributes.add(key);
@@ -257,18 +258,17 @@ function bindExportEvents() {
 
 async function loadAttributeCatalog() {
   try {
-    const response = await fetch('kytc_route_api_keys.csv', { cache: 'no-cache' });
+    const response = await fetch(KYTC_KEYS_ENDPOINT, { cache: 'no-cache' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const csvText = await response.text();
-    const rows = parseCSV(csvText);
+    const rows = await response.json();
 
     state.attributes = rows
-      .filter(row => row.KEY)
+      .filter(row => row.Key)
       .map(row => ({
-        key: String(row.KEY).trim(),
-        alias: String(row.ALIAS || '').trim(),
-        description: String(row.DESCRIPTION || '').trim(),
+        key: String(row.Key).trim(),
+        alias: String(row.Alias || '').trim(),
+        description: String(row.Description || '').trim(),
       }))
       .sort((left, right) => {
         const leftDefault = DEFAULT_ATTRIBUTES.includes(left.key) ? 0 : 1;
@@ -291,7 +291,7 @@ async function loadAttributeCatalog() {
 
     renderDefaultAttributeList();
     renderAttributeTable();
-    updateStatus('The full attribute list could not be loaded, but the locked defaults are ready.', 'warning');
+    updateStatus('The full attribute list could not be loaded, but the default attributes are ready.', 'warning');
   }
 }
 
@@ -706,8 +706,8 @@ function renderAttributeTable(filterText = '') {
 
   tbody.innerHTML = filtered.map(attribute => {
     const isDefault = DEFAULT_ATTRIBUTES.includes(attribute.key);
-    const checked = state.selectedAttributes.has(attribute.key) || isDefault;
-    const checkboxAttrs = isDefault ? 'checked disabled' : (checked ? 'checked' : '');
+    const checked = state.selectedAttributes.has(attribute.key);
+    const checkboxAttrs = checked ? 'checked' : '';
     const desc = attribute.description || attribute.alias || '—';
 
     return `

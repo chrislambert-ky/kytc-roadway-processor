@@ -159,15 +159,13 @@ kytc-roadway-processor/
 ├── styles.css              # Custom styles (Bootstrap overrides + app-specific)
 ├── package.json            # Project metadata; no runtime dependencies
 
----
+```
 
 ## License
 
 This is an unofficial personal project with no formal license. It is not affiliated with or endorsed by the Kentucky Transportation Cabinet.
 
 The underlying KYTC Spatial API is publicly accessible and provided by the Kentucky Transportation Cabinet. This tool is simply a browser-based interface designed to make that API usable without programming — no data is stored, and no server-side processing is performed beyond the API calls themselves.
-
----
 
 ## Acknowledgements
 

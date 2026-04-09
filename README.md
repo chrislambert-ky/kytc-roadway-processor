@@ -15,7 +15,7 @@ Hosted on GitHub Pages: [https://chrislambert-ky.github.io/kytc-roadway-processo
 | Step | Name | Description |
 |------|------|-------------|
 | 1 | **Load Data** | Drag-and-drop or browse for a CSV, JSON, GeoJSON, or Parquet file. Map latitude/longitude columns or choose a WKT Point column. |
-| 2 | **Transform** | Pick which KYTC LRS attributes to append from a searchable catalog of 80+ fields. Nine defaults are pre-selected; optional fields can be toggled freely. |
+| 2 | **Transform** | Pick which KYTC LRS attributes to append from a searchable catalog of 80+ fields loaded live from the API. Nine defaults are pre-selected; any attribute — including the defaults — can be toggled on or off, or reset back to the recommended set at any time. |
 | 3 | **Process / Review** | Sends coordinate batches asynchronously to the KYTC Spatial API and streams results into a live review table as each wave completes. |
 | 4 | **Extract** | Download the enriched dataset as **CSV, JSON, GeoJSON, KML, Parquet, GeoParquet, or Excel (XLSX)**. Choose which columns to include and preview 10 rows before downloading. |
 
@@ -103,7 +103,13 @@ Site_ID,Latitude,Longitude,Comment
 
 ## KYTC Attribute Catalog
 
-The full attribute catalog is stored in [`kytc_route_api_keys.csv`](kytc_route_api_keys.csv) (80+ fields). The nine attributes selected by default are:
+The full attribute catalog is fetched live from the KYTC API each time the app starts:
+
+```
+GET https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/api/utilities/GetReturnKeyInfo?service=GetRouteInfoByCoordinates
+```
+
+This means the field list always reflects the current API schema — no static file to maintain. The nine attributes selected by default are:
 
 | Field | Description |
 |-------|-------------|
@@ -117,7 +123,7 @@ The full attribute catalog is stored in [`kytc_route_api_keys.csv`](kytc_route_a
 | `Snap_Distance_Feet` | Distance in feet from source point to snapped centerline |
 | `Snap_Probability` | Probability that the snapped alignment is correct |
 
-All other catalog fields are available as optional selections in Step 2.
+All other catalog fields are available as optional selections in Step 2. The defaults can also be manually unchecked if needed — the **Defaults** button restores them.
 
 ---
 
@@ -138,6 +144,7 @@ All other catalog fields are available as optional selections in Step 2.
 ## API Reference
 
 - **Endpoint:** `https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/api/route/GetRouteInfoByCoordinates`
+- **Attribute catalog:** `https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/api/utilities/GetReturnKeyInfo?service=GetRouteInfoByCoordinates`
 - **Interactive docs:** [https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/docs](https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/docs)
 - **API explorer:** [https://kytc-api-v100-docs-qrntk7e3ra-uc.a.run.app/app](https://kytc-api-v100-docs-qrntk7e3ra-uc.a.run.app/app)
 
@@ -153,7 +160,6 @@ kytc-roadway-processor/
 ├── workflow-app.js         # ES module — all app logic
 ├── styles.css              # Custom styles (Bootstrap overrides + app-specific)
 ├── server.js               # Minimal Node.js static file server
-├── kytc_route_api_keys.csv # KYTC attribute catalog (key, alias, description)
 ├── sample-points.csv       # Three-row sample coordinate file
 └── package.json            # Project metadata; no runtime dependencies
 ```

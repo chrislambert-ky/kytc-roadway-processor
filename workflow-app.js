@@ -229,6 +229,13 @@ function bindActionEvents() {
   });
 
   document.getElementById('processBtn')?.addEventListener('click', processCsv);
+
+  const consoleCollapse = document.getElementById('processConsoleCollapse');
+  const consoleToggleLabel = document.getElementById('consoleToggleLabel');
+  if (consoleCollapse && consoleToggleLabel) {
+    consoleCollapse.addEventListener('show.bs.collapse', () => { consoleToggleLabel.textContent = 'Hide request log'; });
+    consoleCollapse.addEventListener('hide.bs.collapse', () => { consoleToggleLabel.textContent = 'Show request log'; });
+  }
 }
 
 function bindExportEvents() {
@@ -916,7 +923,7 @@ function renderDataTable(containerId, badgeId, rows, badgeText, visibleColumns, 
     resizableColumns: true,
     clipboard: true,
     clipboardCopyStyled: false,
-    height: '420px',
+    height: tableKey === 'review' ? '525px' : '420px',
     pagination: 'local',
     paginationSize: tableKey === 'load' ? 25 : 50,
     paginationSizeSelector: [25, 50, 100, 200],
@@ -941,6 +948,10 @@ async function processCsv() {
   const startedAt = performance.now();
 
   clearProcessConsole();
+  const consoleCollapse = document.getElementById('processConsoleCollapse');
+  if (consoleCollapse && !consoleCollapse.classList.contains('show')) {
+    bootstrap.Collapse.getOrCreateInstance(consoleCollapse).show();
+  }
   logProcessConsole(`Preparing ${total.toLocaleString()} row(s) for processing.`);
   logProcessConsole(`Async batch / Promise.all — up to 500 requests per wave.`);
   logProcessConsole(`Selected keys: ${selectedKeys.join(', ')}`);
@@ -1114,11 +1125,12 @@ async function fetchRouteInfo(lon, lat, selectedKeys, requestNumber) {
 }
 
 function buildRequestUrl(lon, lat, selectedKeys, requestNumber) {
+  const snapDistance = String(Math.max(1, Math.min(5000, parseInt(document.getElementById('snapDistance')?.value, 10) || 100)));
   const url = new URL(KYTC_ENDPOINT);
   url.search = new URLSearchParams({
     xcoord: String(lon),
     ycoord: String(lat),
-    snap_distance: '200',
+    snap_distance: snapDistance,
     return_keys: selectedKeys.join(', '),
     return_format: 'json',
     input_epsg: '4326',

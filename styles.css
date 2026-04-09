@@ -783,8 +783,19 @@ code {
   color: #b42318;
 }
 
+.console-toggle {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-decoration: none;
+  user-select: none;
+}
+.console-toggle:hover {
+  color: #0d6efd;
+  text-decoration: none;
+}
+
 .process-console {
-  margin-top: 0.8rem;
+  margin-top: 0.5rem;
   min-height: 8rem;
   max-height: 12rem;
   overflow: auto;

@@ -167,3 +167,12 @@ This is an unofficial personal project with no formal license. It is not affilia
 
 The underlying KYTC Spatial API is publicly accessible and provided by the Kentucky Transportation Cabinet. This tool is simply a browser-based interface designed to make that API usable without programming — no data is stored, and no server-side processing is performed beyond the API calls themselves.
 
+---
+
+## Acknowledgements
+
+A special thanks to **Jeremy Gould** for developing and maintaining the official KYTC Spatial API that powers this tool.
+
+- GitHub: [spatialiota](https://github.com/spatialiota)
+- LinkedIn: [jeremy-gould-us](https://www.linkedin.com/in/jeremy-gould-us)
+

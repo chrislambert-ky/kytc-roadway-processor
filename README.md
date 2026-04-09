@@ -16,12 +16,14 @@ Hosted on GitHub Pages: [https://chrislambert-ky.github.io/kytc-roadway-processo
 |------|------|-------------|
 | 1 | **Load Data** | Drag-and-drop or browse for a CSV, JSON, GeoJSON, or Parquet file. Map latitude/longitude columns or choose a WKT Point column. |
 | 2 | **Transform** | Pick which KYTC LRS attributes to append from a searchable catalog of 80+ fields loaded live from the API. Nine defaults are pre-selected; any attribute — including the defaults — can be toggled on or off, or reset back to the recommended set at any time. |
-| 3 | **Process / Review** | Sends coordinate batches asynchronously to the KYTC Spatial API and streams results into a live review table as each wave completes. |
+| 3 | **Process / Review** | Set a snap distance/tolerance (feet), then send coordinate batches asynchronously to the KYTC Spatial API. Results stream into a live review table as each wave completes. A collapsible request log records each batch in real time. |
 | 4 | **Extract** | Download the enriched dataset as **CSV, JSON, GeoJSON, KML, Parquet, GeoParquet, or Excel (XLSX)**. Choose which columns to include and preview 10 rows before downloading. |
 
 **Additional capabilities:**
 - Column selector chip cloud — toggle any source column in or out of the load preview table
 - Header normalization — column names are automatically uppercased with spaces replaced by `_`
+- Snap distance/tolerance control — configurable per run (default 100 ft, range 1–5000 ft); clamped and validated before each API call
+- Collapsible real-time request log on Step 3 — auto-expands when processing starts
 - In-browser analytics powered by DuckDB-WASM (CSV loading, Parquet/GeoParquet export)
 - Status indicators for KYTC API and DuckDB engine readiness
 - Google Analytics integration (tag `G-468B94S87K`)
@@ -44,24 +46,20 @@ All libraries are loaded from CDN — no build step or npm install required for 
 
 ## Getting Started (Local Development)
 
+The app is a static single-page application and can be served by any local HTTP server.
+
 **Prerequisites:** [Node.js](https://nodejs.org/) (any recent LTS version).
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/kytc-roadway-processor.git
+git clone https://github.com/chrislambert-ky/kytc-roadway-processor.git
 cd kytc-roadway-processor
 
-# Start the development server (no dependencies to install)
-node server.js
+# Serve with any static file server, e.g. the built-in npx option:
+npx serve .
 ```
 
-Open [http://127.0.0.1:3000](http://127.0.0.1:3000) in your browser.
-
-The server port defaults to `3000` and can be overridden with the `PORT` environment variable:
-
-```bash
-PORT=8080 node server.js
-```
+Open the URL printed by your server (typically [http://localhost:3000](http://localhost:3000)) in your browser.
 
 > **Note:** DuckDB-WASM requires that files are served over HTTP (not opened as `file://`). Always use the local server during development.
 
@@ -148,7 +146,7 @@ All other catalog fields are available as optional selections in Step 2. The def
 - **Interactive docs:** [https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/docs](https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/docs)
 - **API explorer:** [https://kytc-api-v100-docs-qrntk7e3ra-uc.a.run.app/app](https://kytc-api-v100-docs-qrntk7e3ra-uc.a.run.app/app)
 
-Processing uses async batch requests (`Promise.all`) in waves of 500 rows.
+Processing uses async batch requests (`Promise.all`) in waves of 500 rows. Snap distance defaults to 100 ft and can be adjusted per run in the Step 3 controls — keep it as low as practical for large datasets to preserve performance. For data with outliers, consider two passes: one with a tight snap distance, then a second pass on unmatched rows with a larger value.
 
 ---
 
@@ -159,14 +157,13 @@ kytc-roadway-processor/
 ├── index.html              # Single-page application shell
 ├── workflow-app.js         # ES module — all app logic
 ├── styles.css              # Custom styles (Bootstrap overrides + app-specific)
-├── server.js               # Minimal Node.js static file server
-├── sample-points.csv       # Three-row sample coordinate file
-└── package.json            # Project metadata; no runtime dependencies
-```
+├── package.json            # Project metadata; no runtime dependencies
 
 ---
 
 ## License
 
-This project is provided for use by and in support of the Kentucky Transportation Cabinet. See repository settings for license details.
+This is an unofficial personal project with no formal license. It is not affiliated with or endorsed by the Kentucky Transportation Cabinet.
+
+The underlying KYTC Spatial API is publicly accessible and provided by the Kentucky Transportation Cabinet. This tool is simply a browser-based interface designed to make that API usable without programming — no data is stored, and no server-side processing is performed beyond the API calls themselves.
 

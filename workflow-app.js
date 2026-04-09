@@ -13,6 +13,67 @@ const DEFAULT_ATTRIBUTES = [
   'Snap_Distance_Feet',
   'Snap_Probability'
 ];
+
+// Estimated field completeness (% of records with a non-null value) based on a sample dataset.
+// Fields at 100% are omitted from the map; any field not listed defaults to 'situational'.
+const FIELD_COVERAGE = {
+  // 100% complete — always returned
+  Cardinality: 100, County_Name: 100, County_Number: 100, date_processed: 100,
+  District_Name: 100, District_Number: 100, Federal_System_Roadway_Status: 100,
+  Functional_Class: 100, Geometry: 100, Geometry_X: 100, Geometry_Y: 100,
+  Government_Level: 100, KYTC_Status: 100, Milepoint: 100, National_Hwy_System: 100,
+  Ownership_Status: 100, Request_Id: 100, Road_Name: 100, Road_Shield_Label: 100,
+  Route: 100, Route_Label: 100, Route_Number: 100, Route_Prefix: 100,
+  Route_Section: 100, Route_Type: 100, Route_Unique_Identifier: 100,
+  Side_of_Road: 100, Snap_Distance_Feet: 100, Snap_Probability: 100,
+  Snap_Status: 100, Snow_Ice_Priority_Route_Type: 100, Surface_Type: 100,
+  Type_Operation: 100, Urban_Area_Census: 100,
+  // 85–99% — Recommended (high completeness)
+  Bridge_Feature_Intersect: 91.89, Bridge_Identifier: 91.89,
+  Traffic_ADT_Station: 87.69, Traffic_ADT_Station_Type: 87.69,
+  Traffic_Last_Count: 87.69, Traffic_Last_Count_Year: 87.67,
+  // <85% — Situational (completeness varies by dataset)
+  Reimbursable_Route_Type: 63.16, Lanes_Total_Number_Driving: 62.21,
+  Lane_Width_Feet: 62.21, Median_Width_Feet: 61.9, Median_Type_of_Roadway: 61.9,
+  Speed_Limit_Posted_MPH: 61.85, Direction: 61.79, State_System_Classification: 61.01,
+  Access_Control_Type: 59.77, Truck_Weight_Limit_Class: 59.66,
+  Truck_Weight_Route_Description: 59.64, Horizontal_Curve_Class: 58.67,
+  Traffic_ADT_Source: 57.67, Lanes_Number_Cardinal: 56.22,
+  Shoulder_Type_Cardinal_Right: 55.92, Shoulder_Width_Cardinal_Right_Feet: 55.92,
+  Shoulder_Surface_Width_Cardinal_Right_Feet: 55.92, Lanes_Number_NonCardinal: 55.58,
+  Shoulder_Width_NonCardinal_Right_Feet: 55.56, Shoulder_Type_NonCardinal_Right: 55.56,
+  Shoulder_Surface_Width_NonCardinal_Right_Feet: 55.56,
+  Federal_System_Route_Description: 49.74, Grade_Class: 36.61,
+  Grade_Direction: 35.6, Horizontal_Curve_Degree: 35.44, Grade_Percent: 30.02,
+  Grade_Incoming: 29.84, Grade_Outgoing: 29.84, Grade_Absolute_Difference: 29.57,
+  Horizontal_Curve_Direction: 27.78, Freight_Network_KY_Designation: 22.04,
+  City: 16.96, Speed_Limit_Official_Order: 13.44,
+  NATL_Truck_Network_Route_Description: 12.96, NATL_Truck_Network_Commercial_Vehicle_Access: 12.96,
+  Median_Type: 12.78, NATL_Freight_Designation: 7.64,
+  Horizontal_Curve_SuperElevation_Cardinal: 6.96, Horizontal_Curve_SuperElevation_NonCardinal: 6.41,
+  Extended_Weight_System: 6.32, Shoulder_Type_Cardinal_Left: 6.09,
+  Shoulder_Width_Cardinal_Left_Feet: 6.09, Shoulder_Surface_Width_Cardinal_Left_Feet: 6.09,
+  Strategic_Hwy_Network: 6.07, Shoulder_Surface_Width_NonCardinal_Left_Feet: 5.81,
+  Shoulder_Type_NonCardinal_Left: 5.81, Shoulder_Width_NonCardinal_Left_Feet: 5.81,
+  Route_Suffix: 5.17, Median_Barrier_Type: 4.44,
+  Scenic_Byway_Effective_Date: 3.44, Scenic_Byway_Route_Sequence: 3.44,
+  Scenic_Byway_Road_Name: 3.44, Scenic_Byway_Route: 3.44,
+  Scenic_Byway_Route_Description: 3.44, NATL_Freight_Critical_Corridor_ID1: 2.39,
+  Appalachian_Hwy_Route_Sequence: 1.81, Appalachian_Hwy_Section_Length_for_Cost_Estimating: 1.81,
+  Appalachian_Hwy_Roadway_Status: 1.81, Appalachian_Hwy_Begin_Description: 1.81,
+  Appalachian_Hwy_Corridor: 1.81, Appalachian_Hwy_End_Description: 1.81,
+  Appalachian_Hwy_Section_ID: 1.81, Coal_Haul_Annual_Tons_NonCardinal: 1.47,
+  Enhanced_National_Hwy_System: 1.02, Coal_Haul_Annual_Tons_Cardinal: 0.82,
+  Forest_Hwy_System: 0.5, Forest_Hwy_Route_Number: 0.5, Forest_Hwy_Route_Sequence: 0.5,
+  Forest_Hwy_Road: 0.5, Forest_Hwy_Route_Description: 0.5,
+  National_Hwy_System_Terminal: 0.12, State_System_Toll_Road: 0.11,
+};
+
+function getFieldTier(key) {
+  if (DEFAULT_ATTRIBUTES.includes(key)) return 'default';
+  const coverage = FIELD_COVERAGE[key];
+  return (coverage !== undefined && coverage === 100) ? 'recommended' : 'situational';
+}
 const ACTIVE_EXPORT_FORMATS = new Set(['csv', 'json', 'geojson', 'kml', 'parquet', 'geoparquet']);
 
 const state = {
@@ -278,9 +339,9 @@ async function loadAttributeCatalog() {
         description: String(row.Description || '').trim(),
       }))
       .sort((left, right) => {
-        const leftDefault = DEFAULT_ATTRIBUTES.includes(left.key) ? 0 : 1;
-        const rightDefault = DEFAULT_ATTRIBUTES.includes(right.key) ? 0 : 1;
-        if (leftDefault !== rightDefault) return leftDefault - rightDefault;
+        const tierOrder = { default: 0, recommended: 1, situational: 2 };
+        const tierDiff = tierOrder[getFieldTier(left.key)] - tierOrder[getFieldTier(right.key)];
+        if (tierDiff !== 0) return tierDiff;
         return left.key.localeCompare(right.key);
       });
 
@@ -716,6 +777,15 @@ function renderAttributeTable(filterText = '') {
     const checked = state.selectedAttributes.has(attribute.key);
     const checkboxAttrs = checked ? 'checked' : '';
     const desc = attribute.description || attribute.alias || '—';
+    const tier = getFieldTier(attribute.key);
+    const coverage = FIELD_COVERAGE[attribute.key];
+    let dotHtml = '';
+    if (!isDefault) {
+      const tipText = tier === 'recommended'
+        ? 'Recommended — this field is broadly returned across most datasets'
+        : 'Situational — this field is highly dependent on the dataset being used';
+      dotHtml = `<span class="coverage-dot coverage-dot-${tier}" title="${tipText}"></span>`;
+    }
 
     return `
       <tr>
@@ -723,7 +793,7 @@ function renderAttributeTable(filterText = '') {
           <input class="form-check-input attr-checkbox" type="checkbox" value="${escapeAttribute(attribute.key)}" ${checkboxAttrs}>
         </td>
         <td>
-          <div class="attribute-key">${escapeHtml(attribute.key)} ${isDefault ? '<span class="badge text-bg-primary default-pill">default</span>' : ''}</div>
+          <div class="attribute-key">${dotHtml}${escapeHtml(attribute.key)} ${isDefault ? '<span class="badge text-bg-primary default-pill">default</span>' : ''}</div>
         </td>
         <td>${escapeHtml(desc)}</td>
       </tr>

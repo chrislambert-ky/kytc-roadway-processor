@@ -158,7 +158,7 @@ kytc-roadway-processor/
 ├── workflow-app.js         # ES module — all app logic
 ├── styles.css              # Custom styles (Bootstrap overrides + app-specific)
 ├── package.json            # Project metadata; no runtime dependencies
-
+└── sample-points.csv       # Three-row sample coordinate file for testing
 ```
 
 ## License

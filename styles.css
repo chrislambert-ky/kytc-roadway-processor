@@ -685,9 +685,11 @@ code {
   border-radius: 50%;
 }
 
+/* Diamond shape — distinguishes situational tier by shape, not color alone (WCAG 1.4.1) */
 .coverage-dot-situational {
   background-color: #b45309;
-  border-radius: 50%;
+  border-radius: 1px;
+  transform: rotate(45deg);
 }
 
 .coverage-legend {

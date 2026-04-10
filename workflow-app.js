@@ -784,7 +784,7 @@ function renderAttributeTable(filterText = '') {
       const tipText = tier === 'recommended'
         ? 'Recommended — this field is broadly returned across most datasets'
         : 'Situational — this field is highly dependent on the dataset being used';
-      dotHtml = `<span class="coverage-dot coverage-dot-${tier}" title="${tipText}"></span>`;
+      dotHtml = `<span class="coverage-dot coverage-dot-${tier}" title="${tipText}" aria-label="${tipText}" role="img"></span>`;
     }
 
     return `

@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  KYTC Roadway Attribute — Excel Office Add-in Manifest
+  ======================================================
+  BEFORE DEPLOYING:
+  1. Replace every instance of YOUR_HOSTED_BASE_URL below with the actual
+     URL where the add-in files are hosted (e.g. GitHub Pages URL).
+     Example: https://chrislambert-ky.github.io/kytc-roadway-processor/excel-addon
+  2. Replace ADD_IN_GUID with a freshly generated GUID (e.g. from uuidgenerator.net).
+  3. Verify CORS: open browser DevTools and fetch the KYTC API endpoint directly.
+     If the response lacks Access-Control-Allow-Origin, a proxy layer is needed.
+-->
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+  xsi:type="TaskPaneApp">
+
+  <!-- App identity -->
+  <Id>ADD_IN_GUID</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Kentucky Transportation Cabinet</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+
+  <DisplayName DefaultValue="KYTC Roadway Attributes"/>
+  <Description DefaultValue="Append KYTC LRS roadway attributes (county, route, milepoint, etc.) to any cell using =KYTC.GEO(lat, lon, field)."/>
+
+  <IconUrl DefaultValue="YOUR_HOSTED_BASE_URL/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="YOUR_HOSTED_BASE_URL/icon-64.png"/>
+  <SupportUrl DefaultValue="https://github.com/chrislambert-ky/kytc-roadway-processor"/>
+
+  <AppDomains>
+    <AppDomain>kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app</AppDomain>
+  </AppDomains>
+
+  <Hosts>
+    <Host Name="Workbook"/>
+  </Hosts>
+
+  <DefaultSettings>
+    <SourceLocation DefaultValue="YOUR_HOSTED_BASE_URL/taskpane.html"/>
+  </DefaultSettings>
+
+  <Permissions>ReadWriteDocument</Permissions>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides/1.1" xsi:type="VersionOverridesV1_1">
+
+      <Hosts>
+        <Host xsi:type="Workbook">
+          <AllFormFactors>
+
+            <!-- Custom Functions runtime -->
+            <ExtensionPoint xsi:type="CustomFunctions">
+              <Script>
+                <SourceLocation resid="Functions.Script.Url"/>
+              </Script>
+              <Page>
+                <SourceLocation resid="Functions.Page.Url"/>
+              </Page>
+              <Metadata>
+                <SourceLocation resid="Functions.Metadata.Url"/>
+              </Metadata>
+              <Namespace resid="Functions.Namespace"/>
+            </ExtensionPoint>
+
+          </AllFormFactors>
+
+          <DesktopFormFactor>
+            <GetStarted>
+              <Title resid="GetStarted.Title"/>
+              <Description resid="GetStarted.Description"/>
+              <LearnMoreUrl resid="GetStarted.LearnMoreUrl"/>
+            </GetStarted>
+            <FunctionFile resid="Functions.Script.Url"/>
+            <ExtensionPoint xsi:type="PrimaryCommandSurface">
+              <OfficeTab id="TabHome">
+                <Group id="CommandsGroup">
+                  <Label resid="CommandsGroup.Label"/>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Control xsi:type="Button" id="TaskpaneButton">
+                    <Label resid="TaskpaneButton.Label"/>
+                    <Supertip>
+                      <Title resid="TaskpaneButton.Label"/>
+                      <Description resid="TaskpaneButton.Tooltip"/>
+                    </Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="Icon.16x16"/>
+                      <bt:Image size="32" resid="Icon.32x32"/>
+                      <bt:Image size="80" resid="Icon.80x80"/>
+                    </Icon>
+                    <Action xsi:type="ShowTaskpane">
+                      <TaskpaneId>ButtonId1</TaskpaneId>
+                      <SourceLocation resid="Taskpane.Url"/>
+                    </Action>
+                  </Control>
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+          </DesktopFormFactor>
+
+        </Host>
+      </Hosts>
+
+      <Resources>
+        <!-- URLs -->
+        <bt:Urls>
+          <bt:Url id="Functions.Script.Url"    DefaultValue="YOUR_HOSTED_BASE_URL/functions.js"/>
+          <bt:Url id="Functions.Page.Url"      DefaultValue="YOUR_HOSTED_BASE_URL/functions.html"/>
+          <bt:Url id="Functions.Metadata.Url"  DefaultValue="YOUR_HOSTED_BASE_URL/functions.json"/>
+          <bt:Url id="Taskpane.Url"            DefaultValue="YOUR_HOSTED_BASE_URL/taskpane.html"/>
+          <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://github.com/chrislambert-ky/kytc-roadway-processor"/>
+        </bt:Urls>
+
+        <!-- Strings -->
+        <bt:ShortStrings>
+          <bt:String id="Functions.Namespace"       DefaultValue="KYTC"/>
+          <bt:String id="GetStarted.Title"          DefaultValue="KYTC Roadway Attributes"/>
+          <bt:String id="CommandsGroup.Label"       DefaultValue="KYTC"/>
+          <bt:String id="TaskpaneButton.Label"      DefaultValue="KYTC Field Reference"/>
+        </bt:ShortStrings>
+        <bt:LongStrings>
+          <bt:String id="GetStarted.Description"   DefaultValue="Use =KYTC.GEO(lat, lon, field) to append roadway attributes to any cell."/>
+          <bt:String id="TaskpaneButton.Tooltip"   DefaultValue="Open the KYTC field reference panel to browse available return keys."/>
+        </bt:LongStrings>
+
+        <!-- Icons (add 16x16, 32x32, and 80x80 PNG files to this folder when ready) -->
+        <bt:Images>
+          <bt:Image id="Icon.16x16" DefaultValue="YOUR_HOSTED_BASE_URL/icon-16.png"/>
+          <bt:Image id="Icon.32x32" DefaultValue="YOUR_HOSTED_BASE_URL/icon-32.png"/>
+          <bt:Image id="Icon.80x80" DefaultValue="YOUR_HOSTED_BASE_URL/icon-80.png"/>
+        </bt:Images>
+      </Resources>
+
+    </VersionOverrides>
+  </VersionOverrides>
+</OfficeApp>

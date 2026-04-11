@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 16px 18px;
+      font-family: "Google Sans", Roboto, Arial, sans-serif;
+      font-size: 13px;
+      color: #202124;
+      background: #fff;
+    }
+
+    h2 { font-size: 15px; font-weight: 600; margin: 0 0 3px; }
+
+    .subtitle {
+      font-size: 11px;
+      color: #5f6368;
+      margin: 0 0 14px;
+      line-height: 1.5;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 3px; }
+
+    label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #3c4043;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+
+    select, input[type="number"], input[type="text"] {
+      padding: 6px 8px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #202124;
+      width: 100%;
+    }
+
+    select:focus, input:focus {
+      border-color: #1a73e8;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(26,115,232,.15);
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      color: #5f6368;
+      margin: 14px 0 6px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3px 16px;
+      margin-bottom: 10px;
+    }
+
+    .field-check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-family: "Roboto Mono", "Courier New", monospace;
+      cursor: pointer;
+      padding: 2px 0;
+    }
+
+    .field-check input[type="checkbox"] { width: auto; margin: 0; cursor: pointer; }
+
+    .extra-input {
+      font-family: "Roboto Mono", "Courier New", monospace;
+      font-size: 11px;
+    }
+
+    .form-hint {
+      font-size: 10px;
+      color: #80868b;
+      margin: 3px 0 0;
+    }
+
+    .force-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin: 12px 0;
+      padding: 8px 10px;
+      background: #fef7e0;
+      border: 1px solid #f9ab00;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #3c4043;
+      line-height: 1.4;
+    }
+
+    .force-row input[type="checkbox"] { width: auto; margin: 2px 0 0; flex-shrink: 0; cursor: pointer; }
+
+    .force-row-label { cursor: pointer; }
+    .force-row-label strong { display: block; margin-bottom: 1px; }
+
+    .btn-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      border-top: 1px solid #e8eaed;
+      padding-top: 12px;
+      margin-top: 4px;
+    }
+
+    button {
+      padding: 7px 20px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .btn-cancel {
+      background: #fff;
+      border-color: #dadce0;
+      color: #3c4043;
+    }
+    .btn-cancel:hover { background: #f8f9fa; }
+
+    .btn-run {
+      background: #1a73e8;
+      color: #fff;
+      font-weight: 500;
+      min-width: 90px;
+    }
+    .btn-run:hover { background: #1765cc; }
+    .btn-run:disabled { background: #bdc1c6; cursor: default; }
+
+    #status {
+      font-size: 12px;
+      min-height: 18px;
+      margin-right: auto;
+    }
+
+    .status-err  { color: #c5221f; }
+    .status-ok   { color: #188038; }
+    .status-info { color: #1a73e8; }
+
+    .spinner { display: none; margin-right: 6px; }
+    .is-running .spinner { display: inline; animation: spin 1s linear infinite; }
+    .is-running .btn-run-label { display: none; }
+
+    @keyframes spin {
+      from { display: inline-block; transform: rotate(0deg); }
+      to   { display: inline-block; transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Process Sheet</h2>
+  <p class="subtitle">
+    Reads coordinates from each row, queries the KYTC LRS API, and writes
+    attribute values directly into the sheet as plain values — no formulas.
+    Values persist until you run again. The LRS updates weekly, so one run
+    per week is enough to stay current.
+  </p>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label for="latCol">Latitude column</label>
+      <select id="latCol"><option>Loading headers…</option></select>
+    </div>
+    <div class="form-group">
+      <label for="lonCol">Longitude column</label>
+      <select id="lonCol"><option>Loading headers…</option></select>
+    </div>
+  </div>
+
+  <div class="section-label">Fields to append</div>
+  <div class="field-grid" id="fieldGrid">
+    <!-- populated by JS -->
+  </div>
+
+  <div class="form-group">
+    <label for="extraFields">Additional fields</label>
+    <input type="text" id="extraFields" class="extra-input"
+           placeholder="e.g. Direction,Speed_Limit_Posted_MPH,Traffic_Last_Count">
+    <span class="form-hint">Comma-separated. Open KYTC › Field Reference to browse available keys.</span>
+  </div>
+
+  <div class="form-row" style="margin-top:12px">
+    <div class="form-group">
+      <label for="snapDist">Snap distance (feet)</label>
+      <input type="number" id="snapDist" value="100" min="1" max="5000">
+      <span class="form-hint">Points snapped to nearest centerline within this distance.</span>
+    </div>
+  </div>
+
+  <div class="force-row">
+    <input type="checkbox" id="forceReprocess">
+    <label class="force-row-label" for="forceReprocess">
+      <strong>Force reprocess</strong>
+      Overwrite cells that already have values. Leave unchecked to skip rows
+      that are already filled — useful for adding new rows to an existing dataset.
+    </label>
+  </div>
+
+  <div class="btn-row">
+    <div id="status"></div>
+    <button class="btn-cancel" type="button" onclick="google.script.host.close()">Cancel</button>
+    <button class="btn-run" type="button" id="runBtn" onclick="runProcess()" disabled>
+      <span class="spinner">⟳</span>
+      <span class="btn-run-label">Run</span>
+    </button>
+  </div>
+
+  <script>
+    // 100%-complete fields — always returned for any snapped point
+    var DEFAULT_FIELDS = [
+      // Identity & jurisdiction
+      'District_Number', 'District_Name',
+      'County_Number', 'County_Name',
+      'Government_Level', 'Ownership_Status',
+      // Route
+      'Route_Label', 'Route', 'Route_Type', 'Route_Prefix',
+      'Route_Number', 'Route_Section', 'Route_Unique_Identifier',
+      'Road_Name', 'Road_Shield_Label',
+      // Travel characteristics
+      'Cardinality', 'Side_of_Road', 'Type_Operation',
+      'Functional_Class', 'Surface_Type',
+      'Snow_Ice_Priority_Route_Type', 'National_Hwy_System',
+      'Federal_System_Roadway_Status',
+      // Location
+      'Milepoint', 'Urban_Area_Census',
+      // Snap quality
+      'Snap_Distance_Feet', 'Snap_Probability', 'Snap_Status',
+    ];
+
+    // ── Populate column dropdowns from live sheet headers ─────────────────────
+    setStatus('Loading column headers from sheet…', 'info');
+
+    google.script.run
+      .withSuccessHandler(function (headers) {
+        if (!headers || headers.length === 0) {
+          setStatus('⚠ No column headers found. Make sure row 1 of your sheet contains headers.', 'err');
+          return;
+        }
+        ['latCol', 'lonCol'].forEach(function (id) {
+          var sel = document.getElementById(id);
+          sel.innerHTML = headers.map(function (h) {
+            return '<option value="' + escHtml(h) + '">' + escHtml(h) + '</option>';
+          }).join('');
+        });
+        autoSelect('latCol', ['LAT', 'LATITUDE', 'Y'], headers);
+        autoSelect('lonCol', ['LON', 'LONG', 'LONGITUDE', 'X'], headers);
+        document.getElementById('runBtn').disabled = false;
+        setStatus('');
+      })
+      .withFailureHandler(function (e) {
+        setStatus('⚠ Could not read sheet headers: ' + (e.message || String(e)) + '. Try closing and reopening the dialog.', 'err');
+      })
+      .getSheetHeaders();
+
+    // ── Build default field checkboxes ────────────────────────────────────────
+    var grid = document.getElementById('fieldGrid');
+    DEFAULT_FIELDS.forEach(function (f) {
+      var lbl = document.createElement('label');
+      lbl.className = 'field-check';
+      lbl.innerHTML = '<input type="checkbox" value="' + escHtml(f) + '" checked> ' + escHtml(f);
+      grid.appendChild(lbl);
+    });
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function autoSelect(selectId, candidates, headers) {
+      var upper = headers.map(function (h) { return h.toUpperCase(); });
+      for (var i = 0; i < candidates.length; i++) {
+        var idx = upper.indexOf(candidates[i].toUpperCase());
+        if (idx !== -1) { document.getElementById(selectId).selectedIndex = idx; return; }
+      }
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function setStatus(msg, tone) {
+      var el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = tone ? 'status-' + tone : '';
+    }
+
+    // ── Run ───────────────────────────────────────────────────────────────────
+    function runProcess() {
+      // Collect checked default fields
+      var fields = Array.from(
+        document.querySelectorAll('#fieldGrid input[type="checkbox"]:checked')
+      ).map(function (cb) { return cb.value; });
+
+      // Merge additional fields
+      var extras = document.getElementById('extraFields').value
+        .split(',')
+        .map(function (s) { return s.trim(); })
+        .filter(Boolean);
+
+      extras.forEach(function (f) {
+        if (fields.indexOf(f) === -1) fields.push(f);
+      });
+
+      if (fields.length === 0) {
+        setStatus('Select at least one field to append.', 'err');
+        return;
+      }
+
+      var config = {
+        latCol: document.getElementById('latCol').value,
+        lonCol: document.getElementById('lonCol').value,
+        fields: fields,
+        snap: parseInt(document.getElementById('snapDist').value, 10) || 100,
+        forceReprocess: document.getElementById('forceReprocess').checked,
+      };
+
+      // Lock UI while running
+      document.body.classList.add('is-running');
+      document.getElementById('runBtn').disabled = true;
+      setStatus('Running\u2026 progress toasts will appear in the sheet.', 'info');
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          document.body.classList.remove('is-running');
+          document.getElementById('runBtn').disabled = false;
+
+          if (result.error) {
+            setStatus('\u26a0 ' + result.error, 'err');
+            return;
+          }
+
+          setStatus(
+            '\u2713 Done \u2014 '
+              + result.success + ' matched, '
+              + result.noMatch + ' unmatched, '
+              + result.skipped + ' skipped, '
+              + result.errors + ' errors '
+              + '(' + result.total + ' rows total).',
+            'ok'
+          );
+        })
+        .withFailureHandler(function (e) {
+          document.body.classList.remove('is-running');
+          document.getElementById('runBtn').disabled = false;
+          setStatus('\u26a0 ' + (e.message || String(e)), 'err');
+        })
+        .runProcessSheet(config);
+    }
+  </script>
+</body>
+</html>

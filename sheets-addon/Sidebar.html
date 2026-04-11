@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base target="_blank">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 12px;
+      font-family: "Google Sans", Roboto, Arial, sans-serif;
+      font-size: 13px;
+      color: #202124;
+      background: #fff;
+    }
+
+    h1 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0 0 2px;
+      color: #1a73e8;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: #5f6368;
+      margin: 0 0 10px;
+    }
+
+    .formula-examples {
+      background: #f8f9fa;
+      border: 1px solid #e8eaed;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      font-size: 11px;
+    }
+
+    .formula-examples code {
+      display: block;
+      font-family: "Roboto Mono", monospace;
+      color: #0d652d;
+      margin: 2px 0;
+      font-size: 11px;
+    }
+
+    .formula-examples .note {
+      color: #5f6368;
+      margin-top: 4px;
+      font-size: 10px;
+    }
+
+    .search-wrap {
+      position: relative;
+      margin-bottom: 8px;
+    }
+
+    .search-wrap svg {
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #5f6368;
+      pointer-events: none;
+    }
+
+    #searchBox {
+      width: 100%;
+      padding: 6px 8px 6px 30px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+      color: #202124;
+    }
+
+    #searchBox:focus {
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 2px rgba(26,115,232,0.15);
+    }
+
+    #fieldCount {
+      font-size: 11px;
+      color: #5f6368;
+      margin-bottom: 6px;
+    }
+
+    #status {
+      font-size: 12px;
+      color: #5f6368;
+      padding: 12px 0;
+      text-align: center;
+    }
+
+    .field-list {
+      border: 1px solid #e8eaed;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .field-row {
+      display: flex;
+      flex-direction: column;
+      padding: 7px 10px;
+      border-bottom: 1px solid #f1f3f4;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .field-row:last-child { border-bottom: none; }
+
+    .field-row:hover { background: #f8f9fa; }
+
+    .field-key {
+      font-family: "Roboto Mono", monospace;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1a73e8;
+      margin-bottom: 1px;
+    }
+
+    .field-desc {
+      font-size: 11px;
+      color: #5f6368;
+      line-height: 1.35;
+    }
+
+    .copy-tip {
+      font-size: 10px;
+      color: #bdc1c6;
+      text-align: center;
+      margin-top: 6px;
+    }
+
+    .error { color: #c5221f; font-size: 12px; padding: 8px 0; }
+
+    .badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: .3px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      margin-left: 4px;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    .badge-always      { background: #e6f4ea; color: #137333; }
+    .badge-recommended { background: #e8f0fe; color: #1a73e8; }
+    .badge-situational { background: #f1f3f4; color: #5f6368; }
+  </style>
+</head>
+<body>
+
+  <h1>KYTC Field Reference</h1>
+  <p class="subtitle">Browse available return keys for use in your formulas.</p>
+
+  <div class="formula-examples">
+    <code>=KYTC_LRS(A2, B2, "County_Name")</code>
+    <code>=KYTC_LRS_MULTI(A2, B2, "County_Name,Route_Label,Milepoint")</code>
+    <span class="note">Click any field name below to copy it to the clipboard.</span>
+  </div>
+
+  <div class="search-wrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input id="searchBox" type="search" placeholder="Filter fields…" autocomplete="off">
+  </div>
+
+  <div id="filterBar" style="display:none;margin-bottom:6px;font-size:11px;color:#5f6368">
+    <span id="fieldCount"></span>
+    &nbsp;·&nbsp;
+    <a href="#" id="toggleAll" style="color:#1a73e8;text-decoration:none">Show all fields</a>
+  </div>
+  <div id="status">Loading field list…</div>
+  <div id="fieldList" class="field-list" style="display:none"></div>
+  <p class="copy-tip" id="copyTip" style="display:none">Click a field name to copy it to your clipboard.</p>
+
+  <script>
+    var allFields = [];
+
+    // Field completeness — mirrors FIELD_COVERAGE in Code.gs
+    var FIELD_COVERAGE = {
+      Bridge_Feature_Intersect: 91.89, Bridge_Identifier: 91.89,
+      Traffic_ADT_Station: 87.69, Traffic_ADT_Station_Type: 87.69,
+      Traffic_Last_Count: 87.69, Traffic_Last_Count_Year: 87.67,
+      Reimbursable_Route_Type: 63.16, Lanes_Total_Number_Driving: 62.21,
+      Lane_Width_Feet: 62.21, Median_Width_Feet: 61.9, Median_Type_of_Roadway: 61.9,
+      Speed_Limit_Posted_MPH: 61.85, Direction: 61.79, State_System_Classification: 61.01,
+      Access_Control_Type: 59.77, Truck_Weight_Limit_Class: 59.66,
+      Truck_Weight_Route_Description: 59.64, Horizontal_Curve_Class: 58.67,
+      Traffic_ADT_Source: 57.67, Lanes_Number_Cardinal: 56.22,
+      Shoulder_Type_Cardinal_Right: 55.92, Shoulder_Width_Cardinal_Right_Feet: 55.92,
+      Shoulder_Surface_Width_Cardinal_Right_Feet: 55.92, Lanes_Number_NonCardinal: 55.58,
+      Shoulder_Width_NonCardinal_Right_Feet: 55.56, Shoulder_Type_NonCardinal_Right: 55.56,
+      Shoulder_Surface_Width_NonCardinal_Right_Feet: 55.56,
+      Federal_System_Route_Description: 49.74, Grade_Class: 36.61,
+      Grade_Direction: 35.6, Horizontal_Curve_Degree: 35.44, Grade_Percent: 30.02,
+      Grade_Incoming: 29.84, Grade_Outgoing: 29.84, Grade_Absolute_Difference: 29.57,
+      Horizontal_Curve_Direction: 27.78, Freight_Network_KY_Designation: 22.04,
+      City: 16.96, Speed_Limit_Official_Order: 13.44,
+      NATL_Truck_Network_Route_Description: 12.96, NATL_Truck_Network_Commercial_Vehicle_Access: 12.96,
+      Median_Type: 12.78, NATL_Freight_Designation: 7.64,
+      Horizontal_Curve_SuperElevation_Cardinal: 6.96, Horizontal_Curve_SuperElevation_NonCardinal: 6.41,
+      Extended_Weight_System: 6.32, Shoulder_Type_Cardinal_Left: 6.09,
+      Shoulder_Width_Cardinal_Left_Feet: 6.09, Shoulder_Surface_Width_Cardinal_Left_Feet: 6.09,
+      Strategic_Hwy_Network: 6.07, Shoulder_Surface_Width_NonCardinal_Left_Feet: 5.81,
+      Shoulder_Type_NonCardinal_Left: 5.81, Shoulder_Width_NonCardinal_Left_Feet: 5.81,
+      Route_Suffix: 5.17, Median_Barrier_Type: 4.44,
+      Scenic_Byway_Effective_Date: 3.44, Scenic_Byway_Route_Sequence: 3.44,
+      Scenic_Byway_Road_Name: 3.44, Scenic_Byway_Route: 3.44,
+      Scenic_Byway_Route_Description: 3.44, NATL_Freight_Critical_Corridor_ID1: 2.39,
+      Appalachian_Hwy_Route_Sequence: 1.81, Appalachian_Hwy_Section_Length_for_Cost_Estimating: 1.81,
+      Appalachian_Hwy_Roadway_Status: 1.81, Appalachian_Hwy_Begin_Description: 1.81,
+      Appalachian_Hwy_Corridor: 1.81, Appalachian_Hwy_End_Description: 1.81,
+      Appalachian_Hwy_Section_ID: 1.81, Coal_Haul_Annual_Tons_NonCardinal: 1.47,
+      Enhanced_National_Hwy_System: 1.02, Coal_Haul_Annual_Tons_Cardinal: 0.82,
+      Forest_Hwy_System: 0.5, Forest_Hwy_Route_Number: 0.5, Forest_Hwy_Route_Sequence: 0.5,
+      Forest_Hwy_Road: 0.5, Forest_Hwy_Route_Description: 0.5,
+      National_Hwy_System_Terminal: 0.12, State_System_Toll_Road: 0.11,
+    };
+
+    function fieldCoverage(key) {
+      if (key in FIELD_COVERAGE) {
+        return FIELD_COVERAGE[key] >= 85 ? 'recommended' : 'situational';
+      }
+      return 'always';
+    }
+
+    var KYTC_FIELDS_URL = 'https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app'
+      + '/api/utilities/GetReturnKeyInfo?service=GetRouteInfoByCoordinates';
+
+    var showAll = false;
+
+    fetch(KYTC_FIELDS_URL)
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (rows) {
+        allFields = rows.filter(function (r) { return r.Key; });
+        document.getElementById('status').style.display = 'none';
+        document.getElementById('fieldList').style.display = 'block';
+        document.getElementById('filterBar').style.display = 'block';
+        document.getElementById('copyTip').style.display = 'block';
+        renderList();
+      })
+      .catch(function (e) {
+        document.getElementById('status').innerHTML =
+          '<span class="error">Could not load field list: ' + e.message + '</span>';
+      });
+
+    document.getElementById('toggleAll').addEventListener('click', function (e) {
+      e.preventDefault();
+      showAll = !showAll;
+      this.textContent = showAll ? 'High-reliability only' : 'Show all fields';
+      renderList();
+    });
+
+    function renderList() {
+      var q = document.getElementById('searchBox').value.toLowerCase().trim();
+      var source = showAll ? allFields : allFields.filter(function (f) {
+        return fieldCoverage(f.Key) !== 'situational';
+      });
+      var fields = q
+        ? source.filter(function (f) {
+            return f.Key.toLowerCase().includes(q)
+              || (f.Description || '').toLowerCase().includes(q);
+          })
+        : source;
+
+      var list = document.getElementById('fieldList');
+      var count = document.getElementById('fieldCount');
+
+      var sourceLen = source.length;
+      count.textContent = (q ? fields.length + ' of ' + sourceLen : sourceLen) + ' field' + (sourceLen !== 1 ? 's' : '');
+
+      if (fields.length === 0) {
+        list.innerHTML = '<div class="field-row"><span class="field-desc">No fields match your search.</span></div>';
+        return;
+      }
+
+      var BADGE_LABEL = { always: 'Always', recommended: 'Recommended', situational: 'Situational' };
+      list.innerHTML = fields.map(function (f) {
+        var tier = fieldCoverage(f.Key);
+        return '<div class="field-row" data-key="' + f.Key + '">'
+          + '<span class="field-key">' + f.Key
+          + '<span class="badge badge-' + tier + '">' + BADGE_LABEL[tier] + '</span>'
+          + '</span>'
+          + '<span class="field-desc">' + (f.Description || '') + '</span>'
+          + '</div>';
+      }).join('');
+    }
+
+    document.getElementById('searchBox').addEventListener('input', function () {
+      renderList();
+    });
+
+    document.getElementById('fieldList').addEventListener('click', function (e) {
+      var row = e.target.closest('.field-row[data-key]');
+      if (!row) return;
+      var key = row.dataset.key;
+      navigator.clipboard.writeText(key).then(function () {
+        var keyEl = row.querySelector('.field-key');
+        var original = keyEl.textContent;
+        keyEl.textContent = '✓ Copied!';
+        setTimeout(function () { keyEl.textContent = original; }, 1200);
+      }).catch(function () {
+        // Fallback for environments where clipboard API is restricted
+        var ta = document.createElement('textarea');
+        ta.value = key;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      });
+    });
+  </script>
+</body>
+</html>

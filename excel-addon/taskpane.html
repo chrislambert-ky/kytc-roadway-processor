@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KYTC Roadway Attributes</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      font-size: 13px;
+      margin: 0;
+      padding: 16px;
+      color: #323130;
+    }
+    h1 { font-size: 16px; margin: 0 0 4px; }
+    p  { margin: 0 0 12px; color: #605e5c; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { text-align: left; border-bottom: 1px solid #edebe9; padding: 4px 6px; color: #605e5c; }
+    td { padding: 4px 6px; border-bottom: 1px solid #f3f2f1; vertical-align: top; }
+    td:first-child { font-family: monospace; white-space: nowrap; }
+    #status { color: #605e5c; font-size: 12px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>KYTC Field Reference</h1>
+  <p>Use <code>=KYTC.GEO(lat, lon, "Field_Name")</code> in any cell.<br>
+     Use <code>=KYTC.FIELDS()</code> to spill this list into your sheet.</p>
+  <div id="status">Loading field list…</div>
+  <table id="fieldTable" style="display:none">
+    <thead><tr><th>Key</th><th>Description</th></tr></thead>
+    <tbody id="fieldBody"></tbody>
+  </table>
+
+  <script>
+    Office.onReady(function () {
+      const url = 'https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/api/utilities/GetReturnKeyInfo'
+        + '?service=GetRouteInfoByCoordinates';
+
+      fetch(url)
+        .then(function (r) { return r.json(); })
+        .then(function (rows) {
+          const tbody = document.getElementById('fieldBody');
+          rows.forEach(function (row) {
+            if (!row.Key) return;
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + row.Key + '</td><td>' + (row.Description || '') + '</td>';
+            tbody.appendChild(tr);
+          });
+          document.getElementById('status').textContent = rows.length + ' fields available.';
+          document.getElementById('fieldTable').style.display = 'table';
+        })
+        .catch(function (e) {
+          document.getElementById('status').textContent = 'Error loading fields: ' + e.message;
+        });
+    });
+  </script>
+</body>
+</html>

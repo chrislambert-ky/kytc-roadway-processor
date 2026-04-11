@@ -158,8 +158,28 @@ kytc-roadway-processor/
 ├── workflow-app.js         # ES module — all app logic
 ├── styles.css              # Custom styles (Bootstrap overrides + app-specific)
 ├── package.json            # Project metadata; no runtime dependencies
-└── sample-points.csv       # Three-row sample coordinate file for testing
+├── sample-points.csv       # 20-row bridge coordinate sample for testing
+└── sheets-addon/           # Google Sheets add-on (Apps Script)
+    ├── Code.gs             # Core script — custom functions, batch processor, helpers
+    ├── ProcessDialog.html  # Modal dialog for batch processing
+    ├── Sidebar.html        # Field reference sidebar
+    ├── appsscript.json     # Apps Script manifest
+    └── README.md           # Full setup and usage instructions
 ```
+
+---
+
+## Google Sheets Add-on
+
+The `sheets-addon/` folder contains a Google Apps Script add-on that brings the same KYTC LRS lookups into Google Sheets — no browser app required.
+
+**What it provides:**
+- `=KYTC_LRS(lat, lon, field)` — single-field formula for one-off lookups
+- `=KYTC_LRS_MULTI(lat, lon, "Field1,Field2,…")` — multi-field spill formula
+- `=KYTC_FIELDS()` — live field catalog as a spill table
+- **KYTC › Process Sheet…** — batch processor that writes static values for entire datasets; parallel API calls via `UrlFetchApp.fetchAll()`, 6-hour result cache, duplicate-coordinate deduplication
+
+See [sheets-addon/README.md](sheets-addon/README.md) for setup and usage instructions.
 
 ## License
 

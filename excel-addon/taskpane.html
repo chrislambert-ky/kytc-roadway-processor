@@ -335,8 +335,8 @@
 
     <div class="fr-header">
       <div class="fr-formula-box">
-        <code>=KYTC.GEO(A2, B2, "County_Name")</code>
-        <code>=KYTC.GEO_MULTI(A2, B2, "County_Name,Route_Label,Milepoint")</code>
+        <code>=KYTC.LRS(A2, B2, "County_Name")</code>
+        <code>=KYTC.LRS_MULTI(A2, B2, "County_Name,Route_Label,Milepoint")</code>
         <span class="note">Click any field name to copy it to the clipboard.</span>
       </div>
 
@@ -377,8 +377,8 @@
 
     <div class="section">Custom formulas</div>
     <ul>
-      <li><code>=KYTC.GEO(lat, lon, "Field")</code> &mdash; single field lookup</li>
-      <li><code>=KYTC.GEO_MULTI(lat, lon, "Field1,Field2,&hellip;")</code> &mdash; spills right</li>
+      <li><code>=KYTC.LRS(lat, lon, "Field")</code> &mdash; single field lookup</li>
+      <li><code>=KYTC.LRS_MULTI(lat, lon, "Field1,Field2,&hellip;")</code> &mdash; spills right</li>
       <li><code>=KYTC.FIELDS()</code> &mdash; spills the full field catalog with coverage info</li>
     </ul>
 
@@ -922,3 +922,4 @@
   </script>
 </body>
 </html>
+

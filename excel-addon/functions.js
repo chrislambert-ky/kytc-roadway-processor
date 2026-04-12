@@ -3,8 +3,8 @@
 /**
  * KYTC Roadway Processor — Excel Custom Functions
  *
- * =KYTC.GEO(lat, lon, "Field")                  — single field lookup
- * =KYTC.GEO_MULTI(lat, lon, "Field1,Field2,…")  — spills right across columns
+ * =KYTC.LRS(lat, lon, "Field")                  — single field lookup
+ * =KYTC.LRS_MULTI(lat, lon, "Field1,Field2,…")  — spills right across columns
  * =KYTC.FIELDS()                                 — full field catalog (3 columns)
  *
  * All API calls fetch the full response and cache it in-memory by coordinate,
@@ -134,7 +134,7 @@ async function _fetchRouteInfo(lat, lon, snap) {
  * @param {number} [snapFt=100] Snap distance in feet (1–5000). Default: 100.
  * @returns {Promise<string>} The field value, "No match", or an error.
  */
-async function GEO(lat, lon, field, snapFt) {
+async function LRS(lat, lon, field, snapFt) {
   if (lat == null || lon == null || !field)
     throw new CustomFunctions.Error(CustomFunctions.ErrorCode.invalidValue, 'lat, lon, and field are required.');
   const latNum = Number(lat);
@@ -169,7 +169,7 @@ async function GEO(lat, lon, field, snapFt) {
  * @param {number} [snapFt=100] Snap distance in feet (1–5000). Default: 100.
  * @returns {Promise<string[][]>} A 1×N row of values that spills right.
  */
-async function GEO_MULTI(lat, lon, fields, snapFt) {
+async function LRS_MULTI(lat, lon, fields, snapFt) {
   if (lat == null || lon == null || !fields)
     throw new CustomFunctions.Error(CustomFunctions.ErrorCode.invalidValue, 'lat, lon, and fields are required.');
   const latNum = Number(lat);
@@ -220,6 +220,7 @@ async function FIELDS() {
   }
 }
 
-CustomFunctions.associate('GEO', GEO);
-CustomFunctions.associate('GEO_MULTI', GEO_MULTI);
+CustomFunctions.associate('LRS', LRS);
+CustomFunctions.associate('LRS_MULTI', LRS_MULTI);
 CustomFunctions.associate('FIELDS', FIELDS);
+

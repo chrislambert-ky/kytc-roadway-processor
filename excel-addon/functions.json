@@ -1,8 +1,8 @@
 ﻿{
   "functions": [
     {
-      "id": "GEO",
-      "name": "GEO",
+      "id": "LRS",
+      "name": "LRS",
       "description": "Returns a single KYTC roadway attribute (e.g. County_Name, Route_Label, Milepoint) for a coordinate pair.",
       "helpUrl": "https://github.com/chrislambert-ky/kytc-roadway-processor/blob/main/sheets-addon/README.md",
       "result": { "type": "string", "dimensionality": "scalar" },
@@ -14,8 +14,8 @@
       ]
     },
     {
-      "id": "GEO_MULTI",
-      "name": "GEO_MULTI",
+      "id": "LRS_MULTI",
+      "name": "LRS_MULTI",
       "description": "Returns multiple KYTC roadway attributes for a coordinate pair, spilling right across columns.",
       "helpUrl": "https://github.com/chrislambert-ky/kytc-roadway-processor/blob/main/sheets-addon/README.md",
       "result": { "type": "string", "dimensionality": "matrix" },
@@ -36,3 +36,4 @@
     }
   ]
 }
+

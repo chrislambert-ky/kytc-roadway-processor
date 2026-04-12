@@ -75,17 +75,18 @@ function _cacheKey(lat, lon, snap) {
  */
 function _extractRouteInfo(data) {
   if (!data) return null;
-  // Shape 1: { Route_Info: [{...}] }
-  if (Array.isArray(data.Route_Info) && data.Route_Info.length > 0) return data.Route_Info[0];
-  // Shape 2: { route_info: [{...}] }
-  if (Array.isArray(data.route_info) && data.route_info.length > 0) return data.route_info[0];
-  // Shape 3: { Result: { Route_Info: [{...}] } }
-  if (data.Result && Array.isArray(data.Result.Route_Info) && data.Result.Route_Info.length > 0)
-    return data.Result.Route_Info[0];
-  // Shape 4: direct object with known field keys
-  if (data.County_Name !== undefined || data.Route_Label !== undefined || data.Milepoint !== undefined)
-    return data;
-  return null;
+  // Shape 1: { Route_Info: {...} } or { Route_Info: [{...}] }
+  if (data.Route_Info && typeof data.Route_Info === 'object') {
+    return Array.isArray(data.Route_Info) ? (data.Route_Info[0] || null) : data.Route_Info;
+  }
+  // Shape 2: [ { Route_Info: {...} } ] or [ {...} ]
+  if (Array.isArray(data) && data.length) {
+    const first = data[0];
+    if (first?.Route_Info) return first.Route_Info;
+    return first;
+  }
+  // Shape 3: direct object
+  return typeof data === 'object' ? data : null;
 }
 
 /**

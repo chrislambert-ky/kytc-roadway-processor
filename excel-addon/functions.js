@@ -14,8 +14,9 @@
  * cross-origin fetch() calls to succeed in the Excel custom function sandbox.
  */
 
-const KYTC_ENDPOINT =
-  'https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/api/route/GetRouteInfoByCoordinates';
+// Requests go through a Cloudflare Worker proxy so Excel Online's CSP allows them.
+// Deploy excel-addon/cf-worker.js to Cloudflare Workers and paste your worker URL below.
+const KYTC_ENDPOINT = 'https://kytc-proxy.chrislambert-ky.workers.dev';
 const KYTC_KEYS_ENDPOINT =
   'https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/api/utilities/GetReturnKeyInfo'
   + '?service=GetRouteInfoByCoordinates';

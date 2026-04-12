@@ -1,14 +1,13 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!--
-  KYTC Roadway Attribute — Excel Office Add-in Manifest
+  KYTC Roadway Processor - Excel Office Add-in Manifest
   ======================================================
-  BEFORE DEPLOYING:
-  1. Replace every instance of YOUR_HOSTED_BASE_URL below with the actual
-     URL where the add-in files are hosted (e.g. GitHub Pages URL).
-     Example: https://chrislambert-ky.github.io/kytc-roadway-processor/excel-addon
-  2. Replace ADD_IN_GUID with a freshly generated GUID (e.g. from uuidgenerator.net).
-  3. Verify CORS: open browser DevTools and fetch the KYTC API endpoint directly.
-     If the response lacks Access-Control-Allow-Origin, a proxy layer is needed.
+  Hosted via GitHub Pages at:
+    https://chrislambert-ky.github.io/kytc-roadway-processor/excel-addon
+
+  CORS NOTE: The KYTC API must respond with Access-Control-Allow-Origin: *
+  for =KYTC.GEO() and task pane fetches to work in Excel Online.
+  Test in browser DevTools before deploying - see README for instructions.
 -->
 <OfficeApp
   xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
@@ -18,16 +17,16 @@
   xsi:type="TaskPaneApp">
 
   <!-- App identity -->
-  <Id>ADD_IN_GUID</Id>
+  <Id>51d3ce7b-7e07-4c3a-9f2e-4fe6238b7305</Id>
   <Version>1.0.0.0</Version>
   <ProviderName>Kentucky Transportation Cabinet</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
 
-  <DisplayName DefaultValue="KYTC Roadway Attributes"/>
-  <Description DefaultValue="Append KYTC LRS roadway attributes (county, route, milepoint, etc.) to any cell using =KYTC.GEO(lat, lon, field)."/>
+  <DisplayName DefaultValue="KYTC Roadway Processor"/>
+  <Description DefaultValue="Batch-process LRS attributes into your workbook and use =KYTC.GEO(), =KYTC.GEO_MULTI(), and =KYTC.FIELDS() formulas."/>
 
-  <IconUrl DefaultValue="YOUR_HOSTED_BASE_URL/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="YOUR_HOSTED_BASE_URL/icon-64.png"/>
+  <IconUrl DefaultValue="https://chrislambert-ky.github.io/kytc-roadway-processor/excel-addon/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://chrislambert-ky.github.io/kytc-roadway-processor/excel-addon/icon-64.png"/>
   <SupportUrl DefaultValue="https://github.com/chrislambert-ky/kytc-roadway-processor"/>
 
   <AppDomains>
@@ -39,7 +38,7 @@
   </Hosts>
 
   <DefaultSettings>
-    <SourceLocation DefaultValue="YOUR_HOSTED_BASE_URL/taskpane.html"/>
+    <SourceLocation DefaultValue="https://chrislambert-ky.github.io/kytc-roadway-processor/excel-addon/taskpane.html"/>
   </DefaultSettings>
 
   <Permissions>ReadWriteDocument</Permissions>
@@ -110,33 +109,34 @@
       <Resources>
         <!-- URLs -->
         <bt:Urls>
-          <bt:Url id="Functions.Script.Url"    DefaultValue="YOUR_HOSTED_BASE_URL/functions.js"/>
-          <bt:Url id="Functions.Page.Url"      DefaultValue="YOUR_HOSTED_BASE_URL/functions.html"/>
-          <bt:Url id="Functions.Metadata.Url"  DefaultValue="YOUR_HOSTED_BASE_URL/functions.json"/>
-          <bt:Url id="Taskpane.Url"            DefaultValue="YOUR_HOSTED_BASE_URL/taskpane.html"/>
+          <bt:Url id="Functions.Script.Url"    DefaultValue="https://chrislambert-ky.github.io/kytc-roadway-processor/excel-addon/functions.js"/>
+          <bt:Url id="Functions.Page.Url"      DefaultValue="https://chrislambert-ky.github.io/kytc-roadway-processor/excel-addon/functions.html"/>
+          <bt:Url id="Functions.Metadata.Url"  DefaultValue="https://chrislambert-ky.github.io/kytc-roadway-processor/excel-addon/functions.json"/>
+          <bt:Url id="Taskpane.Url"            DefaultValue="https://chrislambert-ky.github.io/kytc-roadway-processor/excel-addon/taskpane.html"/>
           <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://github.com/chrislambert-ky/kytc-roadway-processor"/>
         </bt:Urls>
 
         <!-- Strings -->
         <bt:ShortStrings>
           <bt:String id="Functions.Namespace"       DefaultValue="KYTC"/>
-          <bt:String id="GetStarted.Title"          DefaultValue="KYTC Roadway Attributes"/>
+          <bt:String id="GetStarted.Title"          DefaultValue="KYTC Roadway Processor"/>
           <bt:String id="CommandsGroup.Label"       DefaultValue="KYTC"/>
-          <bt:String id="TaskpaneButton.Label"      DefaultValue="KYTC Field Reference"/>
+          <bt:String id="TaskpaneButton.Label"      DefaultValue="KYTC Roadway Processor"/>
         </bt:ShortStrings>
         <bt:LongStrings>
-          <bt:String id="GetStarted.Description"   DefaultValue="Use =KYTC.GEO(lat, lon, field) to append roadway attributes to any cell."/>
-          <bt:String id="TaskpaneButton.Tooltip"   DefaultValue="Open the KYTC field reference panel to browse available return keys."/>
+          <bt:String id="GetStarted.Description"   DefaultValue="Batch-process LRS attributes or use =KYTC.GEO(), =KYTC.GEO_MULTI(), and =KYTC.FIELDS() in any cell."/>
+          <bt:String id="TaskpaneButton.Tooltip"   DefaultValue="Open the KYTC Roadway Processor to run batch processing or browse available field names."/>
         </bt:LongStrings>
 
         <!-- Icons (add 16x16, 32x32, and 80x80 PNG files to this folder when ready) -->
         <bt:Images>
-          <bt:Image id="Icon.16x16" DefaultValue="YOUR_HOSTED_BASE_URL/icon-16.png"/>
-          <bt:Image id="Icon.32x32" DefaultValue="YOUR_HOSTED_BASE_URL/icon-32.png"/>
-          <bt:Image id="Icon.80x80" DefaultValue="YOUR_HOSTED_BASE_URL/icon-80.png"/>
+          <bt:Image id="Icon.16x16" DefaultValue="https://chrislambert-ky.github.io/kytc-roadway-processor/excel-addon/icon-16.png"/>
+          <bt:Image id="Icon.32x32" DefaultValue="https://chrislambert-ky.github.io/kytc-roadway-processor/excel-addon/icon-32.png"/>
+          <bt:Image id="Icon.80x80" DefaultValue="https://chrislambert-ky.github.io/kytc-roadway-processor/excel-addon/icon-80.png"/>
         </bt:Images>
       </Resources>
 
     </VersionOverrides>
   </VersionOverrides>
 </OfficeApp>
+

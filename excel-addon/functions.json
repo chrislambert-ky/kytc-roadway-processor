@@ -1,51 +1,37 @@
-{
+﻿{
   "functions": [
     {
       "id": "GEO",
       "name": "GEO",
-      "description": "Returns a KYTC roadway attribute (e.g. County_Name, Route_Label, Milepoint) for a given latitude and longitude.",
-      "helpUrl": "https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/docs",
-      "result": {
-        "type": "string",
-        "dimensionality": "scalar"
-      },
+      "description": "Returns a single KYTC roadway attribute (e.g. County_Name, Route_Label, Milepoint) for a coordinate pair.",
+      "helpUrl": "https://github.com/chrislambert-ky/kytc-roadway-processor/blob/main/sheets-addon/README.md",
+      "result": { "type": "string", "dimensionality": "scalar" },
       "parameters": [
-        {
-          "name": "lat",
-          "description": "Latitude in decimal degrees (WGS84 / EPSG:4326). Kentucky: typically 36.5 to 39.1.",
-          "type": "number",
-          "dimensionality": "scalar"
-        },
-        {
-          "name": "lon",
-          "description": "Longitude in decimal degrees (WGS84 / EPSG:4326). Kentucky: typically -89.6 to -82.0.",
-          "type": "number",
-          "dimensionality": "scalar"
-        },
-        {
-          "name": "field",
-          "description": "The KYTC return key to retrieve, e.g. \"County_Name\". Use =KYTC.FIELDS() to browse available keys.",
-          "type": "string",
-          "dimensionality": "scalar"
-        },
-        {
-          "name": "snapFt",
-          "description": "Optional snap distance in feet (1–5000). Default: 100.",
-          "type": "number",
-          "dimensionality": "scalar",
-          "optional": true
-        }
+        { "name": "lat", "description": "Latitude in decimal degrees (WGS84). Kentucky: ~36.5 to 39.1.", "type": "number", "dimensionality": "scalar" },
+        { "name": "lon", "description": "Longitude in decimal degrees (WGS84). Kentucky: ~-89.6 to -82.0.", "type": "number", "dimensionality": "scalar" },
+        { "name": "field", "description": "KYTC return key, e.g. \"County_Name\". Use =KYTC.FIELDS() to browse all available keys.", "type": "string", "dimensionality": "scalar" },
+        { "name": "snapFt", "description": "Snap distance in feet (1-5000). Default: 100.", "type": "number", "dimensionality": "scalar", "optional": true }
+      ]
+    },
+    {
+      "id": "GEO_MULTI",
+      "name": "GEO_MULTI",
+      "description": "Returns multiple KYTC roadway attributes for a coordinate pair, spilling right across columns.",
+      "helpUrl": "https://github.com/chrislambert-ky/kytc-roadway-processor/blob/main/sheets-addon/README.md",
+      "result": { "type": "string", "dimensionality": "matrix" },
+      "parameters": [
+        { "name": "lat", "description": "Latitude in decimal degrees (WGS84).", "type": "number", "dimensionality": "scalar" },
+        { "name": "lon", "description": "Longitude in decimal degrees (WGS84).", "type": "number", "dimensionality": "scalar" },
+        { "name": "fields", "description": "Comma-separated KYTC return keys, e.g. \"County_Name,Route_Label,Milepoint\".", "type": "string", "dimensionality": "scalar" },
+        { "name": "snapFt", "description": "Snap distance in feet (1-5000). Default: 100.", "type": "number", "dimensionality": "scalar", "optional": true }
       ]
     },
     {
       "id": "FIELDS",
       "name": "FIELDS",
-      "description": "Returns the full list of available KYTC return keys and descriptions, fetched live from the API. Spills into two columns: Key and Description.",
-      "helpUrl": "https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/docs",
-      "result": {
-        "type": "string",
-        "dimensionality": "matrix"
-      },
+      "description": "Returns the full KYTC field catalog as 3 columns: Key, Description, Coverage (Always/Recommended/Situational). Spills down.",
+      "helpUrl": "https://github.com/chrislambert-ky/kytc-roadway-processor/blob/main/sheets-addon/README.md",
+      "result": { "type": "string", "dimensionality": "matrix" },
       "parameters": []
     }
   ]

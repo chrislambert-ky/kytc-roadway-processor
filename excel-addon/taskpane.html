@@ -1,59 +1,924 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>KYTC Roadway Attributes</title>
+  <title>KYTC Roadway Processor</title>
+  <base target="_blank">
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
   <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
     body {
-      font-family: "Segoe UI", sans-serif;
-      font-size: 13px;
       margin: 0;
-      padding: 16px;
-      color: #323130;
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 13px;
+      color: #202124;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
     }
-    h1 { font-size: 16px; margin: 0 0 4px; }
-    p  { margin: 0 0 12px; color: #605e5c; font-size: 12px; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th { text-align: left; border-bottom: 1px solid #edebe9; padding: 4px 6px; color: #605e5c; }
-    td { padding: 4px 6px; border-bottom: 1px solid #f3f2f1; vertical-align: top; }
-    td:first-child { font-family: monospace; white-space: nowrap; }
-    #status { color: #605e5c; font-size: 12px; margin-top: 8px; }
+
+    /* ── Tabs ── */
+    .tab-bar {
+      display: flex;
+      border-bottom: 2px solid #e8eaed;
+      background: #fff;
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 9px 4px;
+      border: none;
+      background: none;
+      font-size: 12px;
+      font-family: inherit;
+      color: #5f6368;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      font-weight: 500;
+      transition: color .15s;
+    }
+    .tab-btn.active { color: #1a73e8; border-bottom-color: #1a73e8; }
+    .tab-btn:hover:not(.active) { color: #3c4043; background: #f8f9fa; }
+
+    /* ── Tab panes ── */
+    .tab-pane { display: none; flex: 1; overflow-y: auto; padding: 14px 14px 0; }
+    .tab-pane.active { display: flex; flex-direction: column; }
+
+    /* ── Common form elements ── */
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #5f6368;
+      margin: 12px 0 5px;
+    }
+    .section-label:first-child { margin-top: 0; }
+
+    .form-group { display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px; }
+
+    label.form-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #3c4043;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+
+    select, input[type="number"], input[type="text"] {
+      padding: 6px 8px;
+      border: 1px solid #dadce0;
+      border-radius: 5px;
+      font-size: 12px;
+      color: #202124;
+      font-family: inherit;
+      width: 100%;
+    }
+    select:focus, input:focus {
+      border-color: #1a73e8;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(26,115,232,.15);
+    }
+
+    .form-hint { font-size: 10px; color: #80868b; margin: 2px 0 0; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* ── Info / warning boxes ── */
+    .range-box {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 10px;
+      background: #e8f0fe;
+      border: 1px solid #aecbfa;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #3c4043;
+      margin-bottom: 10px;
+    }
+    .range-opts { display: flex; gap: 14px; }
+    .range-opt { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 12px; }
+    .range-opt input[type="radio"] { width: auto; margin: 0; cursor: pointer; }
+    .range-detail { display: flex; align-items: center; gap: 8px; padding-left: 2px; }
+    #selectionLabel { font-size: 11px; color: #1a73e8; font-family: monospace; }
+    .btn-sm {
+      padding: 3px 9px; font-size: 11px; border-radius: 4px;
+      background: #fff; border: 1px solid #aecbfa; color: #1a73e8; cursor: pointer;
+    }
+    .btn-sm:hover { background: #d2e3fc; }
+
+    .force-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 10px;
+      background: #fef7e0;
+      border: 1px solid #f9ab00;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #3c4043;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+    .force-box input[type="checkbox"] { width: auto; margin: 2px 0 0; flex-shrink: 0; cursor: pointer; }
+    .force-box-label { cursor: pointer; }
+    .force-box-label strong { display: block; margin-bottom: 1px; }
+
+    /* ── Field checkboxes ── */
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 12px;
+      margin-bottom: 10px;
+    }
+    .field-check {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-family: "Courier New", monospace;
+      cursor: pointer;
+      padding: 2px 0;
+    }
+    .field-check input[type="checkbox"] { width: auto; margin: 0; cursor: pointer; }
+
+    .extra-input { font-family: "Courier New", monospace; font-size: 11px; }
+
+    /* ── Run bar ── */
+    .run-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-top: 1px solid #e8eaed;
+      padding: 10px 14px;
+      flex-shrink: 0;
+      background: #fff;
+    }
+    .run-bar #processStatus { font-size: 11px; flex: 1; }
+    .status-err  { color: #c5221f; }
+    .status-ok   { color: #188038; }
+    .status-info { color: #1a73e8; }
+
+    .btn-primary {
+      padding: 6px 18px;
+      border-radius: 5px;
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: 500;
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-primary:hover { background: #1765cc; }
+    .btn-primary:disabled { background: #bdc1c6; cursor: default; }
+
+    .spinner { display: none; }
+    .is-running .spinner { display: inline; animation: spin 1s linear infinite; }
+    .is-running .btn-label { display: none; }
+    @keyframes spin {
+      from { display: inline-block; transform: rotate(0deg); }
+      to   { display: inline-block; transform: rotate(360deg); }
+    }
+
+    /* ── Field Reference tab ── */
+    .fr-header { flex-shrink: 0; }
+    .fr-formula-box {
+      background: #f8f9fa;
+      border: 1px solid #e8eaed;
+      border-radius: 6px;
+      padding: 7px 10px;
+      margin-bottom: 8px;
+      font-size: 11px;
+    }
+    .fr-formula-box code {
+      display: block;
+      font-family: "Courier New", monospace;
+      color: #0d652d;
+      margin: 2px 0;
+      font-size: 11px;
+    }
+    .fr-formula-box .note { color: #5f6368; margin-top: 3px; font-size: 10px; }
+
+    .search-wrap { position: relative; margin-bottom: 6px; }
+    .search-wrap svg {
+      position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+      color: #5f6368; pointer-events: none;
+    }
+    #searchBox {
+      width: 100%; padding: 5px 8px 5px 28px;
+      border: 1px solid #dadce0; border-radius: 5px;
+      font-size: 12px; color: #202124; font-family: inherit;
+    }
+    #searchBox:focus { border-color: #1a73e8; outline: none; box-shadow: 0 0 0 2px rgba(26,115,232,.15); }
+
+    #filterBar { font-size: 11px; color: #5f6368; margin-bottom: 6px; }
+    #filterBar a { color: #1a73e8; text-decoration: none; }
+
+    .field-list { border: 1px solid #e8eaed; border-radius: 6px; overflow: hidden; flex: 1; }
+    .field-row {
+      display: flex; flex-direction: column;
+      padding: 6px 9px; border-bottom: 1px solid #f1f3f4;
+      cursor: pointer; transition: background .1s;
+    }
+    .field-row:last-child { border-bottom: none; }
+    .field-row:hover { background: #f8f9fa; }
+    .field-key { font-family: "Courier New", monospace; font-size: 11px; font-weight: 600; color: #1a73e8; margin-bottom: 1px; }
+    .field-desc { font-size: 10px; color: #5f6368; line-height: 1.3; }
+    .copy-tip { font-size: 10px; color: #bdc1c6; text-align: center; padding: 6px 0 0; flex-shrink: 0; }
+
+    .badge {
+      display: inline-block; font-size: 9px; font-weight: 600; letter-spacing: .3px;
+      padding: 1px 4px; border-radius: 3px; text-transform: uppercase;
+      margin-left: 4px; vertical-align: middle; white-space: nowrap;
+    }
+    .badge-always      { background: #e6f4ea; color: #137333; }
+    .badge-recommended { background: #e8f0fe; color: #1a73e8; }
+    .badge-situational { background: #f1f3f4; color: #5f6368; }
+
+    /* ── About tab ── */
+    #tab-about h2 { font-size: 15px; font-weight: 600; margin: 0 0 8px; color: #1a73e8; }
+    #tab-about p  { margin: 0 0 8px; line-height: 1.5; font-size: 12px; }
+    #tab-about .section { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: #5f6368; margin: 12px 0 4px; }
+    #tab-about ul { margin: 0 0 8px; padding-left: 16px; font-size: 12px; line-height: 1.6; }
+    #tab-about code { font-family: "Courier New", monospace; background: #f8f9fa; padding: 1px 4px; border-radius: 3px; font-size: 11px; color: #0d652d; }
+    #tab-about a { color: #1a73e8; }
+    #tab-about .footer { margin-top: 14px; padding-top: 10px; border-top: 1px solid #e8eaed; font-size: 11px; color: #5f6368; }
+    .cache-row { margin-top: 10px; }
+    .btn-outline {
+      padding: 5px 14px; border-radius: 5px; font-size: 12px; font-family: inherit;
+      background: #fff; border: 1px solid #dadce0; color: #3c4043; cursor: pointer;
+    }
+    .btn-outline:hover { background: #f8f9fa; }
+    #cacheStatus { font-size: 11px; color: #188038; margin-top: 4px; }
+
+    #frStatus { font-size: 12px; color: #5f6368; padding: 10px 0; text-align: center; }
+    .error { color: #c5221f; }
   </style>
 </head>
 <body>
-  <h1>KYTC Field Reference</h1>
-  <p>Use <code>=KYTC.GEO(lat, lon, "Field_Name")</code> in any cell.<br>
-     Use <code>=KYTC.FIELDS()</code> to spill this list into your sheet.</p>
-  <div id="status">Loading field list…</div>
-  <table id="fieldTable" style="display:none">
-    <thead><tr><th>Key</th><th>Description</th></tr></thead>
-    <tbody id="fieldBody"></tbody>
-  </table>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab('process')">Process Sheet</button>
+    <button class="tab-btn" onclick="showTab('fields')">Field Reference</button>
+    <button class="tab-btn" onclick="showTab('about')">About</button>
+  </div>
+
+  <!-- ═══════════════════════════════ PROCESS SHEET ═══════════════════════════ -->
+  <div id="tab-process" class="tab-pane active">
+
+    <div class="section-label">Rows to process</div>
+    <div class="range-box">
+      <div class="range-opts">
+        <label class="range-opt">
+          <input type="radio" name="rangeMode" value="all" checked onchange="onRangeModeChange()">
+          <span id="allRowsLabel">Entire sheet</span>
+        </label>
+        <label class="range-opt">
+          <input type="radio" name="rangeMode" value="selection" onchange="onRangeModeChange()">
+          Current selection
+        </label>
+      </div>
+      <div class="range-detail" id="selectionDetail" style="display:none">
+        <span id="selectionLabel">Select rows in the sheet, then click Refresh.</span>
+        <button type="button" class="btn-sm" onclick="refreshSelection()">Refresh</button>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="form-group">
+        <label class="form-label" for="latCol">Latitude column</label>
+        <select id="latCol"><option>Loading…</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="lonCol">Longitude column</label>
+        <select id="lonCol"><option>Loading…</option></select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="snapDist">Snap distance (feet)</label>
+      <input type="number" id="snapDist" value="100" min="1" max="5000">
+      <span class="form-hint">Points snapped to nearest centerline within this distance.</span>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="extraFields">Additional fields</label>
+      <input type="text" id="extraFields" class="extra-input"
+             placeholder="e.g. Direction,Speed_Limit_Posted_MPH">
+      <span class="form-hint">Comma-separated. Browse Field Reference tab for available keys.</span>
+    </div>
+
+    <div class="section-label">Fields to append</div>
+    <div class="field-grid" id="fieldGrid"><!-- populated by JS --></div>
+
+    <div class="force-box">
+      <input type="checkbox" id="forceReprocess">
+      <label class="force-box-label" for="forceReprocess">
+        <strong>Force reprocess</strong>
+        Overwrite cells that already have values. Leave unchecked to skip rows
+        that are already filled.
+      </label>
+    </div>
+
+  </div><!-- /tab-process -->
+
+  <!-- ═══════════════════════════════ FIELD REFERENCE ═══════════════════════ -->
+  <div id="tab-fields" class="tab-pane">
+
+    <div class="fr-header">
+      <div class="fr-formula-box">
+        <code>=KYTC.GEO(A2, B2, "County_Name")</code>
+        <code>=KYTC.GEO_MULTI(A2, B2, "County_Name,Route_Label,Milepoint")</code>
+        <span class="note">Click any field name to copy it to the clipboard.</span>
+      </div>
+
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input id="searchBox" type="search" placeholder="Filter fields…" autocomplete="off">
+      </div>
+
+      <div id="filterBar" style="display:none">
+        <span id="fieldCount"></span>
+        &nbsp;&middot;&nbsp;
+        <a href="#" id="toggleAll" onclick="toggleAllFields(event)">Show all fields</a>
+      </div>
+    </div>
+
+    <div id="frStatus">Loading field list…</div>
+    <div id="fieldList" class="field-list" style="display:none"></div>
+    <p class="copy-tip" id="copyTip" style="display:none">Click a field name to copy it to your clipboard.</p>
+
+  </div><!-- /tab-fields -->
+
+  <!-- ═══════════════════════════════ ABOUT ════════════════════════════════ -->
+  <div id="tab-about" class="tab-pane">
+    <h2>KYTC Roadway Processor</h2>
+    <p>Batch processing and custom formulas for the Kentucky Transportation Cabinet
+    Linear Referencing System (LRS) Spatial API.</p>
+
+    <div class="section">What you can do</div>
+    <ul>
+      <li><strong>Process Sheet</strong> &mdash; writes LRS attributes directly into your workbook
+      as static values for every coordinate row. Re-run weekly to stay current with the LRS.</li>
+      <li><strong>Field Reference</strong> &mdash; browse and copy all available return field names,
+      filtered to 100%-reliable fields by default.</li>
+      <li><strong>Clear cache</strong> &mdash; forces fresh API calls on the next run or formula recalc.</li>
+    </ul>
+
+    <div class="section">Custom formulas</div>
+    <ul>
+      <li><code>=KYTC.GEO(lat, lon, "Field")</code> &mdash; single field lookup</li>
+      <li><code>=KYTC.GEO_MULTI(lat, lon, "Field1,Field2,&hellip;")</code> &mdash; spills right</li>
+      <li><code>=KYTC.FIELDS()</code> &mdash; spills the full field catalog with coverage info</li>
+    </ul>
+
+    <div class="cache-row">
+      <button class="btn-outline" onclick="clearCache()">Clear formula cache</button>
+      <div id="cacheStatus"></div>
+    </div>
+
+    <div class="footer">
+      Full setup guide and field reference:
+      <a href="https://github.com/chrislambert-ky/kytc-roadway-processor/blob/main/sheets-addon/README.md">sheets-addon/README.md</a>
+    </div>
+  </div><!-- /tab-about -->
+
+  <!-- ═══════════════════════════════ RUN BAR ════════════════════════════════ -->
+  <div class="run-bar" id="runBar">
+    <div id="processStatus"></div>
+    <button class="btn-primary" id="runBtn" onclick="runProcess()" disabled>
+      <span class="spinner">&#x27F3;</span>
+      <span class="btn-label">Run</span>
+    </button>
+  </div>
 
   <script>
-    Office.onReady(function () {
-      const url = 'https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/api/utilities/GetReturnKeyInfo'
-        + '?service=GetRouteInfoByCoordinates';
+    // ── Constants ──────────────────────────────────────────────────────────────
+    const KYTC_ENDPOINT =
+      'https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/api/route/GetRouteInfoByCoordinates';
+    const KYTC_KEYS_ENDPOINT =
+      'https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/api/utilities/GetReturnKeyInfo' +
+      '?service=GetRouteInfoByCoordinates';
 
-      fetch(url)
-        .then(function (r) { return r.json(); })
-        .then(function (rows) {
-          const tbody = document.getElementById('fieldBody');
-          rows.forEach(function (row) {
-            if (!row.Key) return;
-            const tr = document.createElement('tr');
-            tr.innerHTML = '<td>' + row.Key + '</td><td>' + (row.Description || '') + '</td>';
-            tbody.appendChild(tr);
+    const ALL_ALWAYS_FIELDS = [
+      'District_Number', 'District_Name', 'County_Number', 'County_Name',
+      'Government_Level', 'Ownership_Status',
+      'Route_Label', 'Route', 'Route_Type', 'Route_Prefix', 'Route_Number',
+      'Route_Section', 'Route_Unique_Identifier', 'Road_Name', 'Road_Shield_Label',
+      'Cardinality', 'Side_of_Road', 'Type_Operation', 'Functional_Class',
+      'Surface_Type', 'Snow_Ice_Priority_Route_Type', 'National_Hwy_System',
+      'Federal_System_Roadway_Status',
+      'Milepoint', 'Urban_Area_Census',
+      'Snap_Distance_Feet', 'Snap_Probability', 'Snap_Status',
+    ];
+    const CHECKED_FIELDS = [
+      'District_Number', 'County_Name', 'Route_Label', 'Road_Name',
+      'Cardinality', 'Milepoint', 'Snap_Distance_Feet', 'Snap_Probability',
+    ];
+
+    const FIELD_COVERAGE = {
+      Bridge_Feature_Intersect: 91.89, Bridge_Identifier: 91.89,
+      Traffic_ADT_Station: 87.69, Traffic_ADT_Station_Type: 87.69,
+      Traffic_Last_Count: 87.69, Traffic_Last_Count_Year: 87.67,
+      Reimbursable_Route_Type: 63.16, Lanes_Total_Number_Driving: 62.21,
+      Lane_Width_Feet: 62.21, Median_Width_Feet: 61.9, Median_Type_of_Roadway: 61.9,
+      Speed_Limit_Posted_MPH: 61.85, Direction: 61.79, State_System_Classification: 61.01,
+      Access_Control_Type: 59.77, Truck_Weight_Limit_Class: 59.66,
+      Truck_Weight_Route_Description: 59.64, Horizontal_Curve_Class: 58.67,
+      Traffic_ADT_Source: 57.67, Lanes_Number_Cardinal: 56.22,
+      Shoulder_Type_Cardinal_Right: 55.92, Shoulder_Width_Cardinal_Right_Feet: 55.92,
+      Shoulder_Surface_Width_Cardinal_Right_Feet: 55.92, Lanes_Number_NonCardinal: 55.58,
+      Shoulder_Width_NonCardinal_Right_Feet: 55.56, Shoulder_Type_NonCardinal_Right: 55.56,
+      Shoulder_Surface_Width_NonCardinal_Right_Feet: 55.56,
+      Federal_System_Route_Description: 49.74, Grade_Class: 36.61,
+      Grade_Direction: 35.6, Horizontal_Curve_Degree: 35.44, Grade_Percent: 30.02,
+      Grade_Incoming: 29.84, Grade_Outgoing: 29.84, Grade_Absolute_Difference: 29.57,
+      Horizontal_Curve_Direction: 27.78, Freight_Network_KY_Designation: 22.04,
+      City: 16.96, Speed_Limit_Official_Order: 13.44,
+      NATL_Truck_Network_Route_Description: 12.96, NATL_Truck_Network_Commercial_Vehicle_Access: 12.96,
+      Median_Type: 12.78, NATL_Freight_Designation: 7.64,
+      Horizontal_Curve_SuperElevation_Cardinal: 6.96, Horizontal_Curve_SuperElevation_NonCardinal: 6.41,
+      Extended_Weight_System: 6.32, Shoulder_Type_Cardinal_Left: 6.09,
+      Shoulder_Width_Cardinal_Left_Feet: 6.09, Shoulder_Surface_Width_Cardinal_Left_Feet: 6.09,
+      Strategic_Hwy_Network: 6.07, Shoulder_Surface_Width_NonCardinal_Left_Feet: 5.81,
+      Shoulder_Type_NonCardinal_Left: 5.81, Shoulder_Width_NonCardinal_Left_Feet: 5.81,
+      Route_Suffix: 5.17, Median_Barrier_Type: 4.44,
+      Scenic_Byway_Effective_Date: 3.44, Scenic_Byway_Route_Sequence: 3.44,
+      Scenic_Byway_Road_Name: 3.44, Scenic_Byway_Route: 3.44,
+      Scenic_Byway_Route_Description: 3.44, NATL_Freight_Critical_Corridor_ID1: 2.39,
+      Appalachian_Hwy_Route_Sequence: 1.81, Appalachian_Hwy_Section_Length_for_Cost_Estimating: 1.81,
+      Appalachian_Hwy_Roadway_Status: 1.81, Appalachian_Hwy_Begin_Description: 1.81,
+      Appalachian_Hwy_Corridor: 1.81, Appalachian_Hwy_End_Description: 1.81,
+      Appalachian_Hwy_Section_ID: 1.81, Coal_Haul_Annual_Tons_NonCardinal: 1.47,
+      Enhanced_National_Hwy_System: 1.02, Coal_Haul_Annual_Tons_Cardinal: 0.82,
+      Forest_Hwy_System: 0.5, Forest_Hwy_Route_Number: 0.5, Forest_Hwy_Route_Sequence: 0.5,
+      Forest_Hwy_Road: 0.5, Forest_Hwy_Route_Description: 0.5,
+      National_Hwy_System_Terminal: 0.12, State_System_Toll_Road: 0.11,
+    };
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    var sheetLastRow = 0;
+    var firstDataRow = 2;
+    var lastDataRow  = 0;
+    var activeTab    = 'process';
+    var allFrFields  = [];
+    var frShowAll    = false;
+    var _apiCache    = new Map(); // in-memory cache for Process Sheet fetches
+
+    // ── Tab navigation ─────────────────────────────────────────────────────────
+    function showTab(name) {
+      document.querySelectorAll('.tab-pane').forEach(function (p) { p.classList.remove('active'); });
+      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.getElementById('tab-' + name).classList.add('active');
+      document.querySelectorAll('.tab-btn')[['process','fields','about'].indexOf(name)].classList.add('active');
+      document.getElementById('runBar').style.display = name === 'process' ? 'flex' : 'none';
+      activeTab = name;
+      if (name === 'fields' && allFrFields.length === 0) loadFieldReference();
+    }
+
+    // ── Build field checkboxes ─────────────────────────────────────────────────
+    (function buildFieldGrid() {
+      var grid = document.getElementById('fieldGrid');
+      ALL_ALWAYS_FIELDS.forEach(function (f) {
+        var lbl = document.createElement('label');
+        lbl.className = 'field-check';
+        var checked = CHECKED_FIELDS.indexOf(f) !== -1 ? ' checked' : '';
+        lbl.innerHTML = '<input type="checkbox" value="' + esc(f) + '"' + checked + '> ' + esc(f);
+        grid.appendChild(lbl);
+      });
+    })();
+
+    // ── Office init + load headers ─────────────────────────────────────────────
+    Office.onReady(function () {
+      setProcessStatus('Loading column headers…', 'info');
+      loadHeaders();
+    });
+
+    function loadHeaders() {
+      Excel.run(function (context) {
+        var sheet = context.workbook.worksheets.getActiveWorksheet();
+        var used = sheet.getUsedRange(true);
+        used.load('values, rowCount');
+        return context.sync().then(function () {
+          var headers = (used.values[0] || []).map(function (v) { return String(v || ''); });
+          sheetLastRow = used.rowCount;
+          lastDataRow  = used.rowCount;
+
+          if (!headers.length) {
+            setProcessStatus('⚠ No headers found in row 1.', 'err');
+            return;
+          }
+          ['latCol', 'lonCol'].forEach(function (id) {
+            var sel = document.getElementById(id);
+            sel.innerHTML = headers.map(function (h) {
+              return '<option value="' + esc(h) + '">' + esc(h) + '</option>';
+            }).join('');
           });
-          document.getElementById('status').textContent = rows.length + ' fields available.';
-          document.getElementById('fieldTable').style.display = 'table';
+          autoSelect('latCol', ['LAT', 'LATITUDE', 'Y'], headers);
+          autoSelect('lonCol', ['LON', 'LONG', 'LONGITUDE', 'X'], headers);
+
+          var dataRows = Math.max(0, sheetLastRow - 1);
+          document.getElementById('allRowsLabel').textContent =
+            'Entire sheet (' + dataRows + ' data row' + (dataRows !== 1 ? 's' : '') + ')';
+          document.getElementById('runBtn').disabled = false;
+          setProcessStatus('');
+        });
+      }).catch(function (e) {
+        setProcessStatus('⚠ ' + (e.message || String(e)), 'err');
+      });
+    }
+
+    // ── Range selection ────────────────────────────────────────────────────────
+    function onRangeModeChange() {
+      var mode = document.querySelector('input[name="rangeMode"]:checked').value;
+      document.getElementById('selectionDetail').style.display =
+        mode === 'selection' ? 'flex' : 'none';
+      if (mode === 'selection') refreshSelection();
+    }
+
+    function refreshSelection() {
+      document.getElementById('selectionLabel').textContent = 'Reading selection…';
+      Excel.run(function (context) {
+        var range = context.workbook.getSelectedRange();
+        range.load('rowIndex, rowCount');
+        return context.sync().then(function () {
+          var f = Math.max(2, range.rowIndex + 1);         // clamp to row 2+
+          var l = Math.max(f, range.rowIndex + range.rowCount);
+          firstDataRow = f;
+          lastDataRow  = l;
+          var cnt = l - f + 1;
+          document.getElementById('selectionLabel').textContent =
+            'Rows ' + f + '\u2013' + l + ' (' + cnt + ' row' + (cnt !== 1 ? 's' : '') + ')';
+        });
+      }).catch(function () {
+        document.getElementById('selectionLabel').textContent = 'Could not read selection.';
+      });
+    }
+
+    // ── API helpers (duplicated from functions.js — separate execution context) ──
+    function _extractRouteInfo(data) {
+      if (!data) return null;
+      if (Array.isArray(data.Route_Info) && data.Route_Info.length > 0) return data.Route_Info[0];
+      if (Array.isArray(data.route_info) && data.route_info.length > 0) return data.route_info[0];
+      if (data.Result && Array.isArray(data.Result.Route_Info) && data.Result.Route_Info.length > 0)
+        return data.Result.Route_Info[0];
+      if (data.County_Name !== undefined || data.Route_Label !== undefined || data.Milepoint !== undefined)
+        return data;
+      return null;
+    }
+
+    function _fetchRouteInfo(lat, lon, snap) {
+      var key = lat.toFixed(6) + '|' + lon.toFixed(6) + '|' + snap;
+      if (_apiCache.has(key)) return Promise.resolve(_apiCache.get(key));
+      var params = new URLSearchParams({
+        xcoord: String(lon), ycoord: String(lat),
+        snap_distance: String(snap), return_format: 'json',
+        input_epsg: '4326', output_epsg: '4326', request_id: 'excel-tp',
+      });
+      return fetch(KYTC_ENDPOINT + '?' + params)
+        .then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function (data) {
+          var routeInfo = _extractRouteInfo(data);
+          _apiCache.set(key, routeInfo);
+          return routeInfo;
+        });
+    }
+
+    // ── Run process ────────────────────────────────────────────────────────────
+    function runProcess() {
+      var fields = Array.from(
+        document.querySelectorAll('#fieldGrid input[type="checkbox"]:checked')
+      ).map(function (cb) { return cb.value; });
+      var extras = document.getElementById('extraFields').value
+        .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+      extras.forEach(function (f) { if (fields.indexOf(f) === -1) fields.push(f); });
+      if (!fields.length) { setProcessStatus('Select at least one field.', 'err'); return; }
+
+      var mode = document.querySelector('input[name="rangeMode"]:checked').value;
+      var config = {
+        latCol: document.getElementById('latCol').value,
+        lonCol: document.getElementById('lonCol').value,
+        fields: fields,
+        snap: parseInt(document.getElementById('snapDist').value, 10) || 100,
+        forceReprocess: document.getElementById('forceReprocess').checked,
+        firstDataRow: mode === 'selection' ? firstDataRow : 2,
+        lastDataRow:  mode === 'selection' ? lastDataRow  : sheetLastRow,
+      };
+
+      document.body.classList.add('is-running');
+      document.getElementById('runBtn').disabled = true;
+      setProcessStatus('Reading sheet\u2026', 'info');
+
+      // Step 1 — read sheet data
+      var rowValues, latIdx, lonIdx, fieldColMap, totalRows, firstDataRow0;
+      Excel.run(function (context) {
+        var sheet = context.workbook.worksheets.getActiveWorksheet();
+        var used = sheet.getUsedRange(true);
+        used.load('values, rowCount, columnCount');
+        return context.sync().then(function () {
+          if (!used.values || used.rowCount < 2)
+            throw new Error('No data rows found.');
+
+          var headers = used.values[0].map(function (v) { return String(v || ''); });
+          var colCount = used.columnCount;
+          latIdx = headers.indexOf(config.latCol);
+          lonIdx = headers.indexOf(config.lonCol);
+          if (latIdx === -1) throw new Error('Latitude column "' + config.latCol + '" not found.');
+          if (lonIdx === -1) throw new Error('Longitude column "' + config.lonCol + '" not found.');
+
+          fieldColMap = {};
+          config.fields.forEach(function (f) {
+            var idx = headers.indexOf(f);
+            if (idx === -1) {
+              sheet.getRangeByIndexes(0, colCount, 1, 1).values = [[f]];
+              fieldColMap[f] = colCount++;
+            } else {
+              fieldColMap[f] = idx;
+            }
+          });
+
+          firstDataRow0 = config.firstDataRow - 1;
+          var lastDataRow0 = config.lastDataRow - 1;
+          totalRows = lastDataRow0 - firstDataRow0 + 1;
+
+          var dataRange = sheet.getRangeByIndexes(firstDataRow0, 0, totalRows, used.columnCount);
+          dataRange.load('values');
+          return context.sync().then(function () {
+            rowValues = dataRange.values;
+          });
+        });
+      })
+      .then(function () {
+        // Step 2 — classify rows
+        setProcessStatus('Classifying rows\u2026', 'info');
+        var rowStatus = [];
+        var coordKeyMap = {};
+        var existing = {};
+
+        if (!config.forceReprocess) {
+          config.fields.forEach(function (f) {
+            var fIdx = fieldColMap[f];
+            if (fIdx < (rowValues[0] || []).length) {
+              existing[f] = rowValues.map(function (row) { return row[fIdx] != null ? row[fIdx] : ''; });
+            }
+          });
+        }
+
+        for (var i = 0; i < totalRows; i++) {
+          var lat = rowValues[i][latIdx];
+          var lon = rowValues[i][lonIdx];
+          var isBlank = (lat === '' || lat == null) && (lon === '' || lon == null);
+          if (isBlank) { rowStatus.push('blank'); continue; }
+
+          var needsProcessing = config.forceReprocess || config.fields.some(function (f) {
+            if (!existing[f]) return true;
+            var v = existing[f][i];
+            return v === '' || v == null;
+          });
+          if (!needsProcessing) { rowStatus.push('skip'); continue; }
+
+          var latNum = Number(lat), lonNum = Number(lon);
+          if (!isFinite(latNum) || !isFinite(lonNum) ||
+              latNum < 30 || latNum > 45 || lonNum < -100 || lonNum > -70) {
+            rowStatus.push('invalid'); continue;
+          }
+          rowStatus.push('api');
+          var ck = latNum.toFixed(6) + '|' + lonNum.toFixed(6);
+          if (!(ck in coordKeyMap)) coordKeyMap[ck] = i;
+        }
+
+        // Step 3 — fetch in parallel batches of 50
+        var toFetch = Object.keys(coordKeyMap);
+        var coordResults = {};
+        var BATCH = 50;
+        var chain = Promise.resolve();
+
+        for (var b = 0; b < toFetch.length; b += BATCH) {
+          (function (slice, bStart) {
+            chain = chain.then(function () {
+              setProcessStatus(
+                'Fetching ' + Math.min(bStart + BATCH, toFetch.length) +
+                ' of ' + toFetch.length + ' unique coordinates\u2026', 'info');
+              return Promise.allSettled(slice.map(function (ck) {
+                var parts = ck.split('|');
+                return _fetchRouteInfo(Number(parts[0]), Number(parts[1]), config.snap)
+                  .then(function (ri) { return { ck: ck, routeInfo: ri }; });
+              })).then(function (results) {
+                results.forEach(function (r) {
+                  if (r.status === 'fulfilled') coordResults[r.value.ck] = r.value.routeInfo;
+                });
+                // Retry failures once
+                var failed = results
+                  .map(function (r, i) { return r.status === 'rejected' ? slice[i] : null; })
+                  .filter(Boolean);
+                if (!failed.length) return;
+                return Promise.allSettled(failed.map(function (ck) {
+                  var parts = ck.split('|');
+                  return _fetchRouteInfo(Number(parts[0]), Number(parts[1]), config.snap)
+                    .then(function (ri) { return { ck: ck, routeInfo: ri }; });
+                })).then(function (retries) {
+                  retries.forEach(function (r) {
+                    if (r.status === 'fulfilled') coordResults[r.value.ck] = r.value.routeInfo;
+                  });
+                });
+              });
+            });
+          })(toFetch.slice(b, b + BATCH), b);
+        }
+
+        return chain.then(function () {
+          return { rowStatus: rowStatus, coordResults: coordResults, existing: existing };
+        });
+      })
+      .then(function (state) {
+        // Step 4 — build output
+        var rowStatus = state.rowStatus, coordResults = state.coordResults, existing = state.existing;
+        var output = {};
+        config.fields.forEach(function (f) { output[f] = []; });
+        var successCount = 0, skippedCount = 0, noMatchCount = 0, errorCount = 0;
+
+        for (var i = 0; i < totalRows; i++) {
+          var st = rowStatus[i];
+          if (st === 'blank') {
+            config.fields.forEach(function (f) { output[f].push(['']); });
+          } else if (st === 'skip') {
+            config.fields.forEach(function (f) { output[f].push([existing[f] ? existing[f][i] : '']); });
+            skippedCount++;
+          } else if (st === 'invalid') {
+            config.fields.forEach(function (f) { output[f].push(['Invalid coordinates']); });
+            errorCount++;
+          } else {
+            var lat = Number(rowValues[i][latIdx]);
+            var lon = Number(rowValues[i][lonIdx]);
+            var ck  = lat.toFixed(6) + '|' + lon.toFixed(6);
+            var ri  = coordResults[ck];
+            if (!ri) {
+              config.fields.forEach(function (f) { output[f].push(['No match']); });
+              noMatchCount++;
+            } else {
+              config.fields.forEach(function (f) {
+                var v = ri[f];
+                output[f].push([v !== undefined && v !== null ? String(v) : '']);
+              });
+              successCount++;
+            }
+          }
+        }
+
+        // Step 5 — write output
+        return Excel.run(function (context) {
+          var sheet = context.workbook.worksheets.getActiveWorksheet();
+          config.fields.forEach(function (f) {
+            sheet.getRangeByIndexes(firstDataRow0, fieldColMap[f], totalRows, 1).values = output[f];
+          });
+          return context.sync();
+        }).then(function () {
+          return { success: successCount, skipped: skippedCount, noMatch: noMatchCount, errors: errorCount };
+        });
+      })
+      .then(function (result) {
+        document.body.classList.remove('is-running');
+        document.getElementById('runBtn').disabled = false;
+        setProcessStatus(
+          '\u2713 Done \u2014 ' + result.success + ' matched, ' + result.noMatch +
+          ' unmatched, ' + result.skipped + ' skipped, ' + result.errors + ' errors' +
+          ' (' + totalRows + ' rows total).', 'ok');
+      })
+      .catch(function (e) {
+        document.body.classList.remove('is-running');
+        document.getElementById('runBtn').disabled = false;
+        setProcessStatus('\u26a0 ' + (e.message || String(e)), 'err');
+      });
+    }
+
+    // ── Field Reference ────────────────────────────────────────────────────────
+    function loadFieldReference() {
+      fetch(KYTC_KEYS_ENDPOINT)
+        .then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function (rows) {
+          allFrFields = rows.filter(function (r) { return r.Key; });
+          document.getElementById('frStatus').style.display = 'none';
+          document.getElementById('fieldList').style.display = 'block';
+          document.getElementById('filterBar').style.display = 'block';
+          document.getElementById('copyTip').style.display = 'block';
+          renderFieldList();
         })
         .catch(function (e) {
-          document.getElementById('status').textContent = 'Error loading fields: ' + e.message;
+          document.getElementById('frStatus').innerHTML =
+            '<span class="error">Could not load field list: ' + esc(e.message) + '</span>';
         });
+    }
+
+    function fieldCoverage(key) {
+      if (key in FIELD_COVERAGE)
+        return FIELD_COVERAGE[key] >= 85 ? 'recommended' : 'situational';
+      return 'always';
+    }
+
+    function toggleAllFields(e) {
+      e.preventDefault();
+      frShowAll = !frShowAll;
+      document.getElementById('toggleAll').textContent =
+        frShowAll ? 'Always-reliable only' : 'Show all fields';
+      renderFieldList();
+    }
+
+    function renderFieldList() {
+      var q = document.getElementById('searchBox').value.toLowerCase().trim();
+      var source = frShowAll ? allFrFields : allFrFields.filter(function (f) {
+        return fieldCoverage(f.Key) === 'always';
+      });
+      var fields = q ? source.filter(function (f) {
+        return f.Key.toLowerCase().indexOf(q) !== -1 ||
+               (f.Description || '').toLowerCase().indexOf(q) !== -1;
+      }) : source;
+
+      var BADGE_LABEL = { always: 'Always', recommended: 'Recommended', situational: 'Situational' };
+      var list = document.getElementById('fieldList');
+      var count = document.getElementById('fieldCount');
+      count.textContent = (q ? fields.length + ' of ' + source.length : source.length) +
+        ' field' + (source.length !== 1 ? 's' : '');
+
+      if (!fields.length) {
+        list.innerHTML = '<div class="field-row"><span class="field-desc">No fields match.</span></div>';
+        return;
+      }
+      list.innerHTML = fields.map(function (f) {
+        var tier = fieldCoverage(f.Key);
+        return '<div class="field-row" data-key="' + esc(f.Key) + '">' +
+          '<span class="field-key">' + esc(f.Key) +
+          '<span class="badge badge-' + tier + '">' + BADGE_LABEL[tier] + '</span></span>' +
+          '<span class="field-desc">' + esc(f.Description || '') + '</span></div>';
+      }).join('');
+    }
+
+    document.getElementById('searchBox').addEventListener('input', renderFieldList);
+
+    document.getElementById('fieldList').addEventListener('click', function (e) {
+      var row = e.target.closest('.field-row[data-key]');
+      if (!row) return;
+      var key = row.dataset.key;
+      navigator.clipboard.writeText(key).then(function () {
+        var keyEl = row.querySelector('.field-key');
+        var orig  = keyEl.innerHTML;
+        keyEl.textContent = '\u2713 Copied!';
+        setTimeout(function () { keyEl.innerHTML = orig; }, 1200);
+      }).catch(function () {
+        var ta = document.createElement('textarea');
+        ta.value = key; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      });
     });
+
+    // ── Cache clear ────────────────────────────────────────────────────────────
+    function clearCache() {
+      _apiCache.clear();
+      var el = document.getElementById('cacheStatus');
+      el.textContent = 'Cache cleared. Next run will fetch fresh data.';
+      setTimeout(function () { el.textContent = ''; }, 4000);
+    }
+
+    // ── Utilities ──────────────────────────────────────────────────────────────
+    function autoSelect(selectId, candidates, headers) {
+      var upper = headers.map(function (h) { return h.toUpperCase(); });
+      for (var i = 0; i < candidates.length; i++) {
+        var idx = upper.indexOf(candidates[i]);
+        if (idx !== -1) { document.getElementById(selectId).selectedIndex = idx; return; }
+      }
+    }
+
+    function esc(str) {
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function setProcessStatus(msg, tone) {
+      var el = document.getElementById('processStatus');
+      el.textContent = msg;
+      el.className = tone ? 'status-' + tone : '';
+    }
+
+    // Hide run bar initially while on other tabs
+    document.getElementById('runBar').style.display = 'flex';
   </script>
 </body>
 </html>

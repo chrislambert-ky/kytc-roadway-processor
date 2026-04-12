@@ -1,15 +1,15 @@
 # KYTC Roadway Processor — Excel Add-in
 
-> [!WARNING]
-> **This add-in is not yet ready for use.** It is under active development and may not function correctly. Check back later or use the [Google Sheets add-on](../sheets-addon/README.md) or [web app](https://chrislambert-ky.github.io/kytc-roadway-processor/) instead.
+> [!NOTE]
+> **This add-in is in early release.** If you run into issues, use the [Google Sheets add-on](../sheets-addon/README.md) or [web app](https://chrislambert-ky.github.io/kytc-roadway-processor/) as alternatives.
 
 ---
 
-## What this will do
+## What this does
 
-When complete, the Excel add-in will let you enrich a spreadsheet containing GPS coordinates with KYTC Linear Referencing System (LRS) roadway attributes — directly inside Excel Online or Excel Desktop.
+The Excel add-in lets you enrich a spreadsheet containing GPS coordinates with KYTC Linear Referencing System (LRS) roadway attributes — directly inside Excel Online or Excel Desktop.
 
-**Planned features:**
+**Features:**
 - Task pane UI to batch-process rows (select lat/lon columns, snap distance, which fields to write)
 - Custom worksheet functions: `=KYTC.LRS()` and `=KYTC.LRS_MULTI()` for cell-level lookups
 - `=KYTC.FIELDS()` to list all available attributes and their coverage tiers
@@ -17,9 +17,22 @@ When complete, the Excel add-in will let you enrich a spreadsheet containing GPS
 
 ---
 
-## Known blockers
+## Architecture note — Cloudflare Worker proxy
 
-- **Content Security Policy (CSP)** — Excel Online blocks direct `fetch()` calls to external APIs. A proxy is being set up to route requests through an allowed domain.
+Excel Online enforces a strict **Content Security Policy (CSP)** on all task pane iframes. It maintains an allowlist of domains that JavaScript inside the task pane is permitted to call with `fetch()`. The KYTC Spatial API domain (`kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app`) is not on that allowlist, so every direct API call was blocked with a CSP violation error.
+
+Since GitHub Pages is static (no server-side code), the solution was a **Cloudflare Worker** acting as a thin proxy:
+
+```
+Excel task pane → https://kytc-proxy.chrslmbrt.workers.dev → KYTC Spatial API
+```
+
+The worker ([cf-worker.js](cf-worker.js)):
+1. Receives the request from the task pane
+2. Forwards all query parameters unchanged to the KYTC API
+3. Returns the response with `Access-Control-Allow-Origin: *` headers added
+
+The `*.workers.dev` domain is not explicitly blocked by Excel Online's CSP, so requests go through cleanly. The Cloudflare free tier handles this at no cost.
 
 ---
 

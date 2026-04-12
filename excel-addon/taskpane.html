@@ -407,7 +407,6 @@
 
   <script>
     // ── Constants ──────────────────────────────────────────────────────────────
-    console.log('[KYTC taskpane] v2026-04-11c loaded');
     // Requests go through a Cloudflare Worker proxy so Excel Online's CSP allows them.
     // Deploy excel-addon/cf-worker.js to Cloudflare Workers and paste your worker URL below.
     const KYTC_ENDPOINT = 'https://kytc-proxy.chrslmbrt.workers.dev';
@@ -621,9 +620,7 @@
           return r.json();
         })
         .then(function (data) {
-          console.log('[KYTC] API raw response for', key, data);
           var routeInfo = _extractRouteInfo(data);
-          console.log('[KYTC] _extractRouteInfo result:', routeInfo);
           _apiCache.set(key, routeInfo);
           return routeInfo;
         });
@@ -750,11 +747,7 @@
                   .then(function (ri) { return { ck: ck, routeInfo: ri }; });
               })).then(function (results) {
                 results.forEach(function (r) {
-                  if (r.status === 'fulfilled') {
-                    coordResults[r.value.ck] = r.value.routeInfo;
-                  } else {
-                    console.error('[KYTC] fetch rejected:', r.reason);
-                  }
+                  if (r.status === 'fulfilled') coordResults[r.value.ck] = r.value.routeInfo;
                 });
                 // Retry failures once
                 var failed = results
@@ -767,11 +760,7 @@
                     .then(function (ri) { return { ck: ck, routeInfo: ri }; });
                 })).then(function (retries) {
                   retries.forEach(function (r) {
-                    if (r.status === 'fulfilled') {
-                      coordResults[r.value.ck] = r.value.routeInfo;
-                    } else {
-                      console.error('[KYTC] retry also rejected:', r.reason);
-                    }
+                    if (r.status === 'fulfilled') coordResults[r.value.ck] = r.value.routeInfo;
                   });
                 });
               });
@@ -780,16 +769,6 @@
         }
 
         return chain.then(function () {
-          // Diagnostic: count how many coordinates actually got data
-          var gotData = 0;
-          Object.keys(coordResults).forEach(function (k) { if (coordResults[k]) gotData++; });
-          console.log('[KYTC] coordResults: ' + gotData + ' of ' + toFetch.length + ' returned data');
-          if (toFetch.length > 0 && gotData === 0) {
-            var firstErr = Object.keys(coordResults).length === 0
-              ? 'All API calls were rejected (CORS or network error — check browser console F12).'
-              : 'All API calls returned null — the page may be loading a cached old version. Try Ctrl+Shift+R in the task pane.';
-            throw new Error(firstErr);
-          }
           return { rowStatus: rowStatus, coordResults: coordResults, existing: existing };
         });
       })

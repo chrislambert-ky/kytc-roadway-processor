@@ -155,8 +155,8 @@
 </head>
 <body>
 
-  <h1>KYTC Field Reference</h1>
-  <p class="subtitle">Browse available return keys for use in your formulas.</p>
+  <h1>KYTC Roadway Processor</h1>
+  <p class="subtitle">Field Reference &mdash; Browse available return keys for use in your formulas.</p>
 
   <div class="formula-examples">
     <code>=KYTC_LRS(A2, B2, "County_Name")</code>
@@ -175,6 +175,7 @@
     <span id="fieldCount"></span>
     &nbsp;·&nbsp;
     <a href="#" id="toggleAll" style="color:#1a73e8;text-decoration:none">Show all fields</a>
+    
   </div>
   <div id="status">Loading field list…</div>
   <div id="fieldList" class="field-list" style="display:none"></div>
@@ -257,14 +258,14 @@
     document.getElementById('toggleAll').addEventListener('click', function (e) {
       e.preventDefault();
       showAll = !showAll;
-      this.textContent = showAll ? 'High-reliability only' : 'Show all fields';
+      this.textContent = showAll ? 'Always-reliable only' : 'Show all fields';
       renderList();
     });
 
     function renderList() {
       var q = document.getElementById('searchBox').value.toLowerCase().trim();
       var source = showAll ? allFields : allFields.filter(function (f) {
-        return fieldCoverage(f.Key) !== 'situational';
+        return fieldCoverage(f.Key) === 'always';
       });
       var fields = q
         ? source.filter(function (f) {

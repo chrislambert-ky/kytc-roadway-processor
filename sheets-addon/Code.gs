@@ -170,7 +170,7 @@ function showProcessDialog() {
   var html = HtmlService.createHtmlOutputFromFile('ProcessDialog')
     .setWidth(500)
     .setHeight(580);
-  SpreadsheetApp.getUi().showModalDialog(html, 'KYTC LRS — Process Sheet');
+  SpreadsheetApp.getUi().showModalDialog(html, 'KYTC Roadway Processor');
 }
 
 /**
@@ -178,7 +178,7 @@ function showProcessDialog() {
  */
 function showSidebar() {
   var html = HtmlService.createHtmlOutputFromFile('Sidebar')
-    .setTitle('KYTC Field Reference')
+    .setTitle('KYTC Roadway Processor')
     .setWidth(320);
   SpreadsheetApp.getUi().showSidebar(html);
 }
@@ -257,21 +257,48 @@ function _debugFetch(lat, lon, snap, keys, label) {
  * Shows a brief About dialog.
  */
 function showAbout() {
-  var ui = SpreadsheetApp.getUi();
-  ui.alert(
-    'KYTC LRS — Roadway Attributes',
-    'Batch processing and custom functions for the Kentucky Transportation Cabinet\n'
-      + 'Linear Referencing System (LRS) Spatial API.\n\n'
-      + 'KYTC › Process Sheet…\n'
-      + '    Writes LRS attributes directly into your sheet as static values.\n'
-      + '    Re-run weekly to pick up the latest LRS update.\n\n'
-      + '  =KYTC_LRS(lat, lon, field)\n'
-      + '  =KYTC_LRS_MULTI(lat, lon, "Field1,Field2,…") — spills right\n'
-      + '  =KYTC_FIELDS() — spills the full field catalog\n\n'
-      + 'Open KYTC › Field Reference to browse available field names.\n\n'
-      + 'Source: github.com/chrislambert-ky/kytc-roadway-processor',
-    ui.ButtonSet.OK
-  );
+  var html = HtmlService.createHtmlOutput(
+    '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+    + '<base target="_blank">'
+    + '<style>'
+    + 'body{font-family:"Google Sans",Roboto,Arial,sans-serif;font-size:13px;color:#202124;margin:0;padding:16px 18px;}'
+    + 'h2{font-size:15px;font-weight:600;margin:0 0 10px;color:#1a73e8;}'
+    + 'p{margin:0 0 8px;line-height:1.5;font-size:12px;}'
+    + '.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#5f6368;margin:12px 0 4px;}'
+    + 'ul{margin:0 0 8px;padding-left:18px;font-size:12px;line-height:1.6;}'
+    + 'code{font-family:"Roboto Mono",monospace;background:#f8f9fa;padding:1px 4px;border-radius:3px;font-size:11px;color:#0d652d;}'
+    + 'a{color:#1a73e8;}'
+    + '.footer{margin-top:14px;padding-top:10px;border-top:1px solid #e8eaed;font-size:11px;color:#5f6368;}'
+    + '.btn-row{display:flex;justify-content:flex-end;margin-top:14px;}'
+    + 'button{padding:7px 20px;border-radius:6px;font-size:13px;font-family:inherit;cursor:pointer;background:#1a73e8;color:#fff;border:none;font-weight:500;}'
+    + 'button:hover{background:#1765cc;}'
+    + '</style></head><body>'
+    + '<h2>KYTC Roadway Processor</h2>'
+    + '<p>Batch processing and custom formulas for the Kentucky Transportation Cabinet'
+    + ' Linear Referencing System (LRS) Spatial API.</p>'
+    + '<div class="section">What you can do</div>'
+    + '<ul>'
+    + '<li><strong>Process Sheet</strong> &mdash; writes LRS attributes directly into your sheet'
+    + ' as static values for every coordinate row. Re-run weekly to stay current with the LRS.</li>'
+    + '<li><strong>Field Reference sidebar</strong> &mdash; browse and copy all available return'
+    + ' field names, filtered to reliable fields by default.</li>'
+    + '<li><strong>Clear cache</strong> &mdash; forces fresh API calls on the next run or formula recalc.</li>'
+    + '</ul>'
+    + '<div class="section">Custom formulas</div>'
+    + '<ul>'
+    + '<li><code>=KYTC_LRS(lat, lon, "Field")</code> &mdash; single field lookup</li>'
+    + '<li><code>=KYTC_LRS_MULTI(lat, lon, "Field1,Field2,\u2026")</code> &mdash; spills right</li>'
+    + '<li><code>=KYTC_FIELDS()</code> &mdash; spills the full field catalog with coverage info</li>'
+    + '</ul>'
+    + '<div class="footer">'
+    + 'Full setup guide and field reference: '
+    + '<a href="https://github.com/chrislambert-ky/kytc-roadway-processor/blob/main/sheets-addon/README.md">'
+    + 'sheets-addon/README.md</a>'
+    + '</div>'
+    + '<div class="btn-row"><button onclick="google.script.host.close()">Close</button></div>'
+    + '</body></html>'
+  ).setWidth(460).setHeight(360);
+  SpreadsheetApp.getUi().showModalDialog(html, 'KYTC Roadway Processor');
 }
 
 
@@ -285,8 +312,30 @@ function showAbout() {
 function getSheetHeaders() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var lastCol = sheet.getLastColumn();
-  if (lastCol === 0) return [];
-  return sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(String);
+  var lastRow = sheet.getLastRow();
+  if (lastCol === 0) return { headers: [], lastRow: lastRow };
+  return {
+    headers: sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(String),
+    lastRow: lastRow,
+  };
+}
+
+/**
+ * Returns the row bounds of the user's current sheet selection, clamped to
+ * data rows (row 2 onwards). Returns null if the selection covers only the
+ * header or there is no active selection.
+ * Called by ProcessDialog via google.script.run.
+ * @return {{firstRow:number, lastRow:number, rowCount:number}|null}
+ */
+function getActiveRangeNotation() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var range = sheet.getActiveRange();
+  if (!range) return null;
+  var sheetLastRow = sheet.getLastRow();
+  var firstRow = Math.max(2, range.getRow());
+  var lastRow = Math.min(sheetLastRow, range.getLastRow());
+  if (firstRow > lastRow) return null;
+  return { firstRow: firstRow, lastRow: lastRow, rowCount: lastRow - firstRow + 1 };
 }
 
 /**
@@ -337,16 +386,18 @@ function runProcessSheet(config) {
   });
 
   var snap = Math.min(5000, Math.max(1, parseInt(config.snap, 10) || 100));
-  var total = lastRow - 1;
-  var latVals = sheet.getRange(2, latIdx + 1, total, 1).getValues();
-  var lonVals = sheet.getRange(2, lonIdx + 1, total, 1).getValues();
+  var firstDataRow = (config.firstDataRow >= 2) ? config.firstDataRow : 2;
+  var lastDataRow = (config.lastDataRow && config.lastDataRow <= lastRow) ? config.lastDataRow : lastRow;
+  var total = lastDataRow - firstDataRow + 1;
+  var latVals = sheet.getRange(firstDataRow, latIdx + 1, total, 1).getValues();
+  var lonVals = sheet.getRange(firstDataRow, lonIdx + 1, total, 1).getValues();
 
   var existing = {};
   if (!config.forceReprocess) {
     config.fields.forEach(function (f) {
       var col = fieldCols[f];
       if (col < sheet.getLastColumn()) {
-        existing[f] = sheet.getRange(2, col + 1, total, 1).getValues();
+        existing[f] = sheet.getRange(firstDataRow, col + 1, total, 1).getValues();
       }
     });
   }
@@ -529,7 +580,7 @@ function runProcessSheet(config) {
 
   // ── Step 5: Write all output columns in one batch per field ───────────────
   config.fields.forEach(function (f) {
-    sheet.getRange(2, fieldCols[f] + 1, total, 1).setValues(output[f]);
+    sheet.getRange(firstDataRow, fieldCols[f] + 1, total, 1).setValues(output[f]);
   });
 
   SpreadsheetApp.getActive().toast(

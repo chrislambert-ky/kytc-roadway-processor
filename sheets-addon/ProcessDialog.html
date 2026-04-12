@@ -113,6 +113,56 @@
     .force-row-label { cursor: pointer; }
     .force-row-label strong { display: block; margin-bottom: 1px; }
 
+    .range-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 0 0 12px;
+      padding: 8px 10px;
+      background: #e8f0fe;
+      border: 1px solid #aecbfa;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #3c4043;
+    }
+
+    .range-opts { display: flex; gap: 16px; }
+
+    .range-opt {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .range-opt input[type="radio"] { width: auto; margin: 0; cursor: pointer; }
+
+    .range-detail {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+      padding-left: 2px;
+    }
+
+    #selectionLabel {
+      font-size: 11px;
+      color: #1a73e8;
+      font-family: "Roboto Mono", monospace;
+    }
+
+    .btn-sm {
+      padding: 3px 10px;
+      font-size: 11px;
+      border-radius: 4px;
+      background: #fff;
+      border: 1px solid #aecbfa;
+      color: #1a73e8;
+      cursor: pointer;
+    }
+    .btn-sm:hover { background: #d2e3fc; }
+
     .btn-row {
       display: flex;
       justify-content: flex-end;
@@ -170,13 +220,31 @@
 </head>
 <body>
 
-  <h2>Process Sheet</h2>
+  <h2>KYTC Roadway Processor</h2>
   <p class="subtitle">
-    Reads coordinates from each row, queries the KYTC LRS API, and writes
-    attribute values directly into the sheet as plain values — no formulas.
+    <strong>Process Sheet</strong> &mdash; Reads coordinates from each row, queries the KYTC LRS API,
+    and writes attribute values directly into the sheet as plain values &mdash; no formulas.
     Values persist until you run again. The LRS updates weekly, so one run
     per week is enough to stay current.
   </p>
+
+  <div class="section-label">Rows to process</div>
+  <div class="range-row">
+    <div class="range-opts">
+      <label class="range-opt">
+        <input type="radio" name="rangeMode" value="all" checked onchange="onRangeModeChange()">
+        <span id="allRowsLabel">Entire sheet</span>
+      </label>
+      <label class="range-opt">
+        <input type="radio" name="rangeMode" value="selection" onchange="onRangeModeChange()">
+        Current selection
+      </label>
+    </div>
+    <div class="range-detail" id="selectionDetail" style="display:none">
+      <span id="selectionLabel">Select rows in the sheet, then click Refresh.</span>
+      <button type="button" class="btn-sm" onclick="refreshRange()">Refresh</button>
+    </div>
+  </div>
 
   <div class="form-row">
     <div class="form-group">
@@ -189,24 +257,24 @@
     </div>
   </div>
 
-  <div class="section-label">Fields to append</div>
-  <div class="field-grid" id="fieldGrid">
-    <!-- populated by JS -->
+  <div class="form-row">
+    <div class="form-group">
+      <label for="snapDist">Snap distance (feet)</label>
+      <input type="number" id="snapDist" value="100" min="1" max="5000">
+      <span class="form-hint">Points snapped to nearest centerline within this distance.</span>
+    </div>
   </div>
 
-  <div class="form-group">
+  <div class="form-group" style="margin-bottom:12px">
     <label for="extraFields">Additional fields</label>
     <input type="text" id="extraFields" class="extra-input"
            placeholder="e.g. Direction,Speed_Limit_Posted_MPH,Traffic_Last_Count">
     <span class="form-hint">Comma-separated. Open KYTC › Field Reference to browse available keys.</span>
   </div>
 
-  <div class="form-row" style="margin-top:12px">
-    <div class="form-group">
-      <label for="snapDist">Snap distance (feet)</label>
-      <input type="number" id="snapDist" value="100" min="1" max="5000">
-      <span class="form-hint">Points snapped to nearest centerline within this distance.</span>
-    </div>
+  <div class="section-label">Fields to append</div>
+  <div class="field-grid" id="fieldGrid">
+    <!-- populated by JS -->
   </div>
 
   <div class="force-row">
@@ -228,32 +296,44 @@
   </div>
 
   <script>
-    // 100%-complete fields — always returned for any snapped point
-    var DEFAULT_FIELDS = [
+    // State
+    var sheetLastRow = 0;   // last row number in the sheet (1-based)
+    var firstDataRow = 2;   // active range start (row number, 1-based)
+    var lastDataRow  = 0;   // active range end   (row number, 1-based)
+
+    // All 100%-complete fields — shown as checkboxes in "Fields to append"
+    var ALL_ALWAYS_FIELDS = [
       // Identity & jurisdiction
-      'District_Number', 'District_Name',
-      'County_Number', 'County_Name',
+      'District_Number', 'District_Name', 'County_Number', 'County_Name',
       'Government_Level', 'Ownership_Status',
       // Route
-      'Route_Label', 'Route', 'Route_Type', 'Route_Prefix',
-      'Route_Number', 'Route_Section', 'Route_Unique_Identifier',
-      'Road_Name', 'Road_Shield_Label',
+      'Route_Label', 'Route', 'Route_Type', 'Route_Prefix', 'Route_Number',
+      'Route_Section', 'Route_Unique_Identifier', 'Road_Name', 'Road_Shield_Label',
       // Travel characteristics
-      'Cardinality', 'Side_of_Road', 'Type_Operation',
-      'Functional_Class', 'Surface_Type',
-      'Snow_Ice_Priority_Route_Type', 'National_Hwy_System',
+      'Cardinality', 'Side_of_Road', 'Type_Operation', 'Functional_Class',
+      'Surface_Type', 'Snow_Ice_Priority_Route_Type', 'National_Hwy_System',
       'Federal_System_Roadway_Status',
-      // Location
+      // Location on route
       'Milepoint', 'Urban_Area_Census',
       // Snap quality
       'Snap_Distance_Feet', 'Snap_Probability', 'Snap_Status',
+    ];
+
+    // Pre-checked defaults — mirrors DEFAULT_ATTRIBUTES in workflow-app.js
+    var CHECKED_FIELDS = [
+      'District_Number', 'County_Name', 'Route_Label', 'Road_Name',
+      'Cardinality', 'Milepoint', 'Snap_Distance_Feet', 'Snap_Probability',
     ];
 
     // ── Populate column dropdowns from live sheet headers ─────────────────────
     setStatus('Loading column headers from sheet…', 'info');
 
     google.script.run
-      .withSuccessHandler(function (headers) {
+      .withSuccessHandler(function (result) {
+        var headers = result.headers;
+        sheetLastRow = result.lastRow;
+        lastDataRow  = result.lastRow;
+
         if (!headers || headers.length === 0) {
           setStatus('⚠ No column headers found. Make sure row 1 of your sheet contains headers.', 'err');
           return;
@@ -266,6 +346,11 @@
         });
         autoSelect('latCol', ['LAT', 'LATITUDE', 'Y'], headers);
         autoSelect('lonCol', ['LON', 'LONG', 'LONGITUDE', 'X'], headers);
+
+        var dataRows = Math.max(0, sheetLastRow - 1);
+        document.getElementById('allRowsLabel').textContent =
+          'Entire sheet (' + dataRows + ' data row' + (dataRows !== 1 ? 's' : '') + ')';
+
         document.getElementById('runBtn').disabled = false;
         setStatus('');
       })
@@ -274,16 +359,47 @@
       })
       .getSheetHeaders();
 
-    // ── Build default field checkboxes ────────────────────────────────────────
+    // ── Build field checkboxes (all Always fields; defaults pre-checked) ───────
     var grid = document.getElementById('fieldGrid');
-    DEFAULT_FIELDS.forEach(function (f) {
+    ALL_ALWAYS_FIELDS.forEach(function (f) {
       var lbl = document.createElement('label');
       lbl.className = 'field-check';
-      lbl.innerHTML = '<input type="checkbox" value="' + escHtml(f) + '" checked> ' + escHtml(f);
+      var checked = CHECKED_FIELDS.indexOf(f) !== -1 ? ' checked' : '';
+      lbl.innerHTML = '<input type="checkbox" value="' + escHtml(f) + '"' + checked + '> ' + escHtml(f);
       grid.appendChild(lbl);
     });
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+    function onRangeModeChange() {
+      var mode = document.querySelector('input[name="rangeMode"]:checked').value;
+      document.getElementById('selectionDetail').style.display =
+        mode === 'selection' ? 'flex' : 'none';
+      if (mode === 'selection') refreshRange();
+    }
+
+    function refreshRange() {
+      document.getElementById('selectionLabel').textContent = 'Reading selection…';
+      google.script.run
+        .withSuccessHandler(function (sel) {
+          if (!sel) {
+            document.getElementById('selectionLabel').textContent =
+              'No rows selected — select rows in the sheet, then click Refresh.';
+            firstDataRow = 2;
+            lastDataRow  = sheetLastRow;
+            return;
+          }
+          firstDataRow = sel.firstRow;
+          lastDataRow  = sel.lastRow;
+          document.getElementById('selectionLabel').textContent =
+            'Rows ' + sel.firstRow + '–' + sel.lastRow +
+            ' (' + sel.rowCount + ' row' + (sel.rowCount !== 1 ? 's' : '') + ')';
+        })
+        .withFailureHandler(function () {
+          document.getElementById('selectionLabel').textContent = 'Could not read selection.';
+        })
+        .getActiveRangeNotation();
+    }
+
     function autoSelect(selectId, candidates, headers) {
       var upper = headers.map(function (h) { return h.toUpperCase(); });
       for (var i = 0; i < candidates.length; i++) {
@@ -328,12 +444,15 @@
         return;
       }
 
+      var mode = document.querySelector('input[name="rangeMode"]:checked').value;
       var config = {
         latCol: document.getElementById('latCol').value,
         lonCol: document.getElementById('lonCol').value,
         fields: fields,
         snap: parseInt(document.getElementById('snapDist').value, 10) || 100,
         forceReprocess: document.getElementById('forceReprocess').checked,
+        firstDataRow: mode === 'selection' ? firstDataRow : 2,
+        lastDataRow:  mode === 'selection' ? lastDataRow  : sheetLastRow,
       };
 
       // Lock UI while running

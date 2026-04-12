@@ -302,6 +302,9 @@
         <select id="lonCol"><option>Loading…</option></select>
       </div>
     </div>
+    <div style="margin:-6px 0 10px">
+      <button type="button" class="btn-sm" onclick="loadHeaders()">&#8635; Refresh columns</button>
+    </div>
 
     <div class="form-group">
       <label class="form-label" for="snapDist">Snap distance (feet)</label>
@@ -484,6 +487,7 @@
       document.getElementById('runBar').style.display = name === 'process' ? 'flex' : 'none';
       activeTab = name;
       if (name === 'fields' && allFrFields.length === 0) loadFieldReference();
+      if (name === 'process') loadHeaders();
     }
 
     // ── Build field checkboxes ─────────────────────────────────────────────────
@@ -507,34 +511,53 @@
     function loadHeaders() {
       Excel.run(function (context) {
         var sheet = context.workbook.worksheets.getActiveWorksheet();
-        var used = sheet.getUsedRange(true);
-        used.load('values, rowCount');
+        // Read only the used column count first, then fetch just row 1
+        var usedRange = sheet.getUsedRange(true);
+        usedRange.load(['columnCount', 'rowCount']);
         return context.sync().then(function () {
-          var headers = (used.values[0] || []).map(function (v) { return String(v || ''); });
-          sheetLastRow = used.rowCount;
-          lastDataRow  = used.rowCount;
+          var colCount = usedRange.columnCount || 0;
+          sheetLastRow = usedRange.rowCount || 0;
+          lastDataRow  = sheetLastRow;
 
-          if (!headers.length) {
-            setProcessStatus('⚠ No headers found in row 1.', 'err');
+          if (colCount === 0) {
+            setProcessStatus('⚠ No data found. Make sure row 1 contains column headers.', 'err');
             return;
           }
-          ['latCol', 'lonCol'].forEach(function (id) {
-            var sel = document.getElementById(id);
-            sel.innerHTML = headers.map(function (h) {
-              return '<option value="' + esc(h) + '">' + esc(h) + '</option>';
-            }).join('');
-          });
-          autoSelect('latCol', ['LAT', 'LATITUDE', 'Y'], headers);
-          autoSelect('lonCol', ['LON', 'LONG', 'LONGITUDE', 'X'], headers);
+          // Read only the first row for headers
+          var headerRange = sheet.getRangeByIndexes(0, 0, 1, colCount);
+          headerRange.load('values');
+          return context.sync().then(function () {
+            var headers = (headerRange.values[0] || [])
+              .map(function (v) { return String(v || ''); })
+              .filter(function (h) { return h.trim() !== ''; });
 
-          var dataRows = Math.max(0, sheetLastRow - 1);
-          document.getElementById('allRowsLabel').textContent =
-            'Entire sheet (' + dataRows + ' data row' + (dataRows !== 1 ? 's' : '') + ')';
-          document.getElementById('runBtn').disabled = false;
-          setProcessStatus('');
+            if (!headers.length) {
+              setProcessStatus('⚠ No headers found in row 1.', 'err');
+              return;
+            }
+            ['latCol', 'lonCol'].forEach(function (id) {
+              var sel = document.getElementById(id);
+              sel.innerHTML = headers.map(function (h) {
+                return '<option value="' + esc(h) + '">' + esc(h) + '</option>';
+              }).join('');
+            });
+            autoSelect('latCol', ['LAT', 'LATITUDE', 'Y'], headers);
+            autoSelect('lonCol', ['LON', 'LONG', 'LONGITUDE', 'X'], headers);
+
+            var dataRows = Math.max(0, sheetLastRow - 1);
+            document.getElementById('allRowsLabel').textContent =
+              'Entire sheet (' + dataRows + ' data row' + (dataRows !== 1 ? 's' : '') + ')';
+            document.getElementById('runBtn').disabled = false;
+            setProcessStatus('');
+          });
         });
       }).catch(function (e) {
-        setProcessStatus('⚠ ' + (e.message || String(e)), 'err');
+        // getUsedRange throws ItemNotFound when the sheet is completely empty
+        if (e.code === 'ItemNotFound' || (e.message && e.message.indexOf('empty') !== -1)) {
+          setProcessStatus('⚠ Sheet appears empty. Add headers to row 1 first.', 'err');
+        } else {
+          setProcessStatus('⚠ ' + (e.message || String(e)), 'err');
+        }
       });
     }
 

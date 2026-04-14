@@ -74,7 +74,7 @@ function getFieldTier(key) {
   const coverage = FIELD_COVERAGE[key];
   return (coverage !== undefined && coverage === 100) ? 'recommended' : 'situational';
 }
-const ACTIVE_EXPORT_FORMATS = new Set(['csv', 'json', 'geojson', 'kml', 'parquet', 'geoparquet']);
+const ACTIVE_EXPORT_FORMATS = new Set(['csv', 'json', 'geojson', 'kml', 'xlsx', 'parquet', 'geoparquet']);
 
 const state = {
   currentStep: 1,
@@ -1299,6 +1299,9 @@ async function downloadFormat(format) {
       downloadBlob(kml, `kytc-roadway-processed-${stamp}.kml`, 'application/vnd.google-earth.kml+xml;charset=utf-8;');
       break;
     }
+    case 'xlsx':
+      downloadXlsx(rows, `kytc-roadway-processed-${stamp}.xlsx`);
+      break;
     case 'parquet':
       updateStatus('Building Parquet file via DuckDB-WASM…', 'info');
       await downloadParquet(rows, `kytc-roadway-processed-${stamp}.parquet`);
@@ -1447,6 +1450,18 @@ function downloadCsv(rows, filename) {
   });
 
   downloadBlob(lines.join('\n'), filename, 'text/csv;charset=utf-8;');
+}
+
+function downloadXlsx(rows, filename) {
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'KYTC Data');
+  const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  downloadBlob(
+    new Uint8Array(buffer),
+    filename,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
 }
 
 function downloadBlob(content, filename, mimeType) {

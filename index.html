@@ -362,6 +362,17 @@
                         <button class="export-dl-btn" type="button" data-format="kml" title="Download KML" disabled><i class="bi bi-download"></i></button>
                       </span>
                     </label>
+                    <label class="export-option">
+                      <input type="radio" name="exportFormat" value="xlsx">
+                      <span class="export-option-inner">
+                        <span class="export-option-icon"><i class="bi bi-file-earmark-excel"></i></span>
+                        <span>
+                          <span class="export-option-title">Excel</span>
+                          <span class="export-option-note">XLSX workbook via SheetJS</span>
+                        </span>
+                        <button class="export-dl-btn" type="button" data-format="xlsx" title="Download Excel (XLSX)" disabled><i class="bi bi-download"></i></button>
+                      </span>
+                    </label>
                     <label class="export-option export-option-planned">
                       <input type="radio" name="exportFormat" value="parquet">
                       <span class="export-option-inner">
@@ -455,7 +466,7 @@
               <div>
                 <strong>Extract</strong>
                 <p>Download the processed result in your preferred format. Available formats:<br>
-                <strong>CSV, JSON, GeoJSON, KML, Parquet, GeoParquet</strong></p>
+                <strong>CSV, JSON, GeoJSON, KML, Excel (XLSX), Parquet, GeoParquet</strong></p>
                 <br>
                 <p><em>Note:</em> A 10-row preview updates as you switch formats. You can select which output columns to include before downloading. Parquet and GeoParquet are generated via DuckDB-WASM. All other formats are produced directly in the browser with no additional dependencies.</p>
               </div>
@@ -494,6 +505,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script type="module" src="workflow-app.js"></script>
 </body>
 </html>

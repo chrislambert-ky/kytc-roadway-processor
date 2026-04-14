@@ -58,7 +58,7 @@ Excel Online enforces a strict **Content Security Policy (CSP)** on all task pan
 Since GitHub Pages is static (no server-side code), the solution was a **Cloudflare Worker** acting as a thin proxy:
 
 ```
-Excel task pane → https://kytc-proxy.chrslmbrt.workers.dev → KYTC Spatial API
+Excel task pane → https://kytc-proxy.kypc.workers.dev → KYTC Spatial API
 ```
 
 The worker ([cf-worker.js](cf-worker.js)):

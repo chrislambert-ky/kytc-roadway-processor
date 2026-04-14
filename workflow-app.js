@@ -1453,7 +1453,16 @@ function downloadCsv(rows, filename) {
 }
 
 function downloadXlsx(rows, filename) {
-  const worksheet = XLSX.utils.json_to_sheet(rows);
+  // SheetJS cannot serialize arrays or objects into cells — coerce them to
+  // strings the same way escapeCsv() does for the CSV export.
+  const normalized = rows.map(row => {
+    const out = {};
+    for (const [key, val] of Object.entries(row)) {
+      out[key] = (val === null || val === undefined) ? '' : (typeof val === 'object' ? String(val) : val);
+    }
+    return out;
+  });
+  const worksheet = XLSX.utils.json_to_sheet(normalized);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'KYTC Data');
   const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });

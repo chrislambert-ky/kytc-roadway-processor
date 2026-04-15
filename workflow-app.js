@@ -11,7 +11,8 @@ const DEFAULT_ATTRIBUTES = [
   'Direction',
   'Milepoint',
   'Snap_Distance_Feet',
-  'Snap_Probability'
+  'Snap_Probability',
+  'Snap_Status'
 ];
 
 // Estimated field completeness (% of records with a non-null value) based on a sample dataset.
@@ -21,7 +22,7 @@ const FIELD_COVERAGE = {
   Cardinality: 100, County_Name: 100, County_Number: 100, date_processed: 100,
   District_Name: 100, District_Number: 100, Federal_System_Roadway_Status: 100,
   Functional_Class: 100, Geometry: 100, Geometry_X: 100, Geometry_Y: 100,
-  Government_Level: 100, KYTC_Status: 100, Milepoint: 100, National_Hwy_System: 100,
+  Government_Level: 100, API_Status: 100, Milepoint: 100, National_Hwy_System: 100,
   Ownership_Status: 100, Request_Id: 100, Road_Name: 100, Road_Shield_Label: 100,
   Route: 100, Route_Label: 100, Route_Number: 100, Route_Prefix: 100,
   Route_Section: 100, Route_Type: 100, Route_Unique_Identifier: 100,
@@ -1135,7 +1136,7 @@ async function processCsv() {
 
     const elapsedSeconds = ((performance.now() - startedAt) / 1000).toFixed(2);
     const tone = summary.issueCount ? 'warning' : 'success';
-    const suffix = summary.issueCount ? ` ${summary.issueCount.toLocaleString()} row(s) need review in the KYTC_Status column.` : '';
+    const suffix = summary.issueCount ? ` ${summary.issueCount.toLocaleString()} row(s) need review — check the Snap_Status and API_Status columns.` : '';
 
     logProcessConsole(`Completed in ${elapsedSeconds}s. Success: ${summary.successCount}. Issues: ${summary.issueCount}.`);
     updateStatus(`Finished ${total.toLocaleString()} row(s) in ${elapsedSeconds}s. ${summary.successCount.toLocaleString()} succeeded.${suffix}`, tone);
@@ -1190,7 +1191,7 @@ async function processRowsAsync(latField, lonField, selectedKeys) {
         outputRows[idx] = { ...outputRows[idx] };
         selectedKeys.forEach(k => { outputRows[idx][k] = result.row[k]; });
         outputRows[idx].Request_Id = result.row.Request_Id;
-        outputRows[idx].KYTC_Status = result.row.KYTC_Status;
+        outputRows[idx].API_Status = result.row.API_Status;
         outputRows[idx].KYTC_Error = result.row.KYTC_Error;
       });
     });
@@ -1206,7 +1207,7 @@ async function processRowsAsync(latField, lonField, selectedKeys) {
   let successCount = 0;
   let issueCount = 0;
   outputRows.forEach(row => {
-    if (row.KYTC_Status === 'OK') successCount += 1;
+    if (row.API_Status === 'OK') successCount += 1;
     else issueCount += 1;
   });
 
@@ -1223,14 +1224,14 @@ async function enrichRow(row, index, latField, lonField, selectedKeys) {
       row: {
         ...row,
         Request_Id: row.Request_Id || `row-${index + 1}`,
-        KYTC_Status: 'Invalid latitude/longitude',
+        API_Status: 'Invalid latitude/longitude',
         KYTC_Error: 'Row skipped before request.'
       }
     };
   }
 
   const missingKeys = selectedKeys.filter(key => isEmptyValue(row[key]));
-  const requestKeys = missingKeys.length ? missingKeys : (row.KYTC_Status === 'OK' ? [] : selectedKeys);
+  const requestKeys = missingKeys.length ? missingKeys : (row.API_Status === 'OK' ? [] : selectedKeys);
 
   if (!requestKeys.length) {
     return {
@@ -1238,7 +1239,7 @@ async function enrichRow(row, index, latField, lonField, selectedKeys) {
       row: {
         ...row,
         Request_Id: row.Request_Id || `row-${index + 1}`,
-        KYTC_Status: 'OK',
+        API_Status: 'OK',
         KYTC_Error: ''
       }
     };
@@ -1253,7 +1254,7 @@ async function enrichRow(row, index, latField, lonField, selectedKeys) {
         row: {
           ...row,
           Request_Id: row.Request_Id || `row-${index + 1}`,
-          KYTC_Status: 'No route info returned',
+          API_Status: 'No route info returned',
           KYTC_Error: 'The API returned no Route_Info payload.'
         }
       };
@@ -1264,7 +1265,7 @@ async function enrichRow(row, index, latField, lonField, selectedKeys) {
       merged[key] = routeInfo[key] ?? merged[key] ?? '';
     });
     merged.Request_Id = routeInfo.Request_Id || row.Request_Id || `row-${index + 1}`;
-    merged.KYTC_Status = 'OK';
+    merged.API_Status = 'OK';
     merged.KYTC_Error = '';
 
     return { ok: true, row: merged };
@@ -1274,7 +1275,7 @@ async function enrichRow(row, index, latField, lonField, selectedKeys) {
       row: {
         ...row,
         Request_Id: row.Request_Id || `row-${index + 1}`,
-        KYTC_Status: 'Request failed',
+        API_Status: 'Request failed',
         KYTC_Error: error.message || 'The KYTC API request failed.'
       }
     };
@@ -1661,7 +1662,7 @@ function getReviewColumns() {
   state.originalColumnOrder.forEach(add);
   selectedAttributeList().forEach(add);
 
-  ['Request_Id', 'KYTC_Status', 'KYTC_Error', 'date_processed'].forEach(column => {
+  ['Request_Id', 'Snap_Status', 'API_Status', 'KYTC_Error', 'date_processed'].forEach(column => {
     if (state.workingRows.some(row => !isEmptyValue(row[column]))) {
       add(column);
     }

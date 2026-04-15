@@ -237,6 +237,7 @@ function bindAttributeEvents() {
 
 function bindActionEvents() {
   document.getElementById('latSelect')?.addEventListener('change', () => {
+    recheckCoordWarning();
     refreshColumnLocks();
     renderLoadPreviewTable(state.workingRows, state.workingRows.length ? 'Spreadsheet preview' : 'No file loaded');
     renderReviewTable();
@@ -244,6 +245,7 @@ function bindActionEvents() {
   });
 
   document.getElementById('lonSelect')?.addEventListener('change', () => {
+    recheckCoordWarning();
     refreshColumnLocks();
     renderLoadPreviewTable(state.workingRows, state.workingRows.length ? 'Spreadsheet preview' : 'No file loaded');
     renderReviewTable();
@@ -728,6 +730,85 @@ function renderDefaultAttributeList() {
   container.innerHTML = keys.map(key => `<span class="default-attr-chip">${escapeHtml(key)}</span>`).join('');
 }
 
+function validateCoordGuess(guessedLat, guessedLon) {
+  // Validates the guessed lat/lon columns against actual data values.
+  // Returns { lat, lon, swapped } — swapped=true when the columns appeared reversed.
+  if (!guessedLat || !guessedLon || !state.workingRows.length) {
+    return { lat: guessedLat, lon: guessedLon, swapped: false };
+  }
+
+  const sample = state.workingRows.slice(0, Math.min(20, state.workingRows.length));
+  const latVals = sample.map(r => parseNumber(r[guessedLat])).filter(v => Number.isFinite(v));
+  const lonVals = sample.map(r => parseNumber(r[guessedLon])).filter(v => Number.isFinite(v));
+
+  if (!latVals.length || !lonVals.length) {
+    return { lat: guessedLat, lon: guessedLon, swapped: false };
+  }
+
+  // Any value outside the valid latitude range cannot be a latitude.
+  if (latVals.some(v => Math.abs(v) > 90)) {
+    return { lat: guessedLon, lon: guessedLat, swapped: true };
+  }
+
+  // If the average absolute value of the guessed-lat column is noticeably larger
+  // than the guessed-lon column, the assignments are likely reversed.
+  // (Longitude values typically have greater absolute magnitude than latitude values.)
+  const avgAbsLat = latVals.reduce((s, v) => s + Math.abs(v), 0) / latVals.length;
+  const avgAbsLon = lonVals.reduce((s, v) => s + Math.abs(v), 0) / lonVals.length;
+
+  if (avgAbsLat > avgAbsLon + 10) {
+    return { lat: guessedLon, lon: guessedLat, swapped: true };
+  }
+
+  return { lat: guessedLat, lon: guessedLon, swapped: false };
+}
+
+function updateCoordNotice(message, tone) {
+  const notice = document.getElementById('coordNotice');
+  if (!notice) return;
+  if (!message) {
+    notice.classList.add('d-none');
+    notice.innerHTML = '';
+    return;
+  }
+  const colorClass = tone === 'warning' ? 'text-warning-emphasis' : 'text-info-emphasis';
+  const icon = tone === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-info-circle';
+  notice.className = `form-text mt-1 ${colorClass}`;
+  notice.innerHTML = `<i class="bi ${icon} me-1"></i>${message}`;
+  notice.classList.remove('d-none');
+}
+
+function recheckCoordWarning() {
+  const latField = document.getElementById('latSelect')?.value;
+  const lonField = document.getElementById('lonSelect')?.value;
+  if (!latField || !lonField || !state.workingRows.length) {
+    updateCoordNotice('', '');
+    return;
+  }
+
+  const sample = state.workingRows.slice(0, Math.min(20, state.workingRows.length));
+  const latVals = sample.map(r => parseNumber(r[latField])).filter(v => Number.isFinite(v));
+  const lonVals = sample.map(r => parseNumber(r[lonField])).filter(v => Number.isFinite(v));
+
+  if (!latVals.length || !lonVals.length) {
+    updateCoordNotice('', '');
+    return;
+  }
+
+  const latOutOfRange = latVals.some(v => Math.abs(v) > 90);
+  const avgAbsLat = latVals.reduce((s, v) => s + Math.abs(v), 0) / latVals.length;
+  const avgAbsLon = lonVals.reduce((s, v) => s + Math.abs(v), 0) / lonVals.length;
+
+  if (latOutOfRange || avgAbsLat > avgAbsLon + 10) {
+    updateCoordNotice(
+      `The values in <strong>${escapeHtml(latField)}</strong> look like longitudes and <strong>${escapeHtml(lonField)}</strong> looks like latitudes — verify your selection.`,
+      'warning'
+    );
+  } else {
+    updateCoordNotice('', '');
+  }
+}
+
 function populateCoordinateSelectors(headers) {
   const latSelect = document.getElementById('latSelect');
   const lonSelect = document.getElementById('lonSelect');
@@ -739,11 +820,22 @@ function populateCoordinateSelectors(headers) {
   latSelect.innerHTML = options.join('');
   lonSelect.innerHTML = options.join('');
 
-  const guessedLat = guessCoordinateField(headers, ['latitude', 'lat', 'ycoord', 'y_coordinate'], ['y']);
-  const guessedLon = guessCoordinateField(headers, ['longitude', 'lon', 'lng', 'xcoord', 'x_coordinate'], ['x']);
+  const rawGuessedLat = guessCoordinateField(headers, ['latitude', 'lat', 'ycoord', 'y_coordinate'], ['y']);
+  const rawGuessedLon = guessCoordinateField(headers, ['longitude', 'lon', 'lng', 'xcoord', 'x_coordinate'], ['x']);
+
+  const { lat: guessedLat, lon: guessedLon, swapped } = validateCoordGuess(rawGuessedLat, rawGuessedLon);
 
   if (guessedLat) latSelect.value = guessedLat;
   if (guessedLon) lonSelect.value = guessedLon;
+
+  if (swapped && guessedLat && guessedLon) {
+    updateCoordNotice(
+      `Column values appeared reversed — auto-selected <strong>${escapeHtml(guessedLat)}</strong> as Latitude and <strong>${escapeHtml(guessedLon)}</strong> as Longitude. Verify this is correct.`,
+      'warning'
+    );
+  } else {
+    updateCoordNotice('', '');
+  }
 
   const wktSelect = document.getElementById('wktSelect');
   if (wktSelect) {

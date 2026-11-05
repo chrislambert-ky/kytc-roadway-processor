@@ -17,14 +17,14 @@ Hosted on GitHub Pages: [https://chrislambert-ky.github.io/kytc-roadway-processo
 | 1 | **Load Data** | Drag-and-drop or browse for a CSV, JSON, GeoJSON, or Parquet file. Map latitude/longitude columns or choose a WKT Point column. |
 | 2 | **Transform** | Pick which KYTC LRS attributes to append from a searchable catalog of 80+ fields loaded live from the API. Nine defaults are pre-selected; any attribute — including the defaults — can be toggled on or off, or reset back to the recommended set at any time. |
 | 3 | **Process / Review** | Set a snap distance/tolerance (feet), then send coordinate batches asynchronously to the KYTC Spatial API. Results stream into a live review table as each wave completes. A collapsible request log records each batch in real time. |
-| 4 | **Extract** | Download the enriched dataset as **CSV, JSON, GeoJSON, KML, Parquet, GeoParquet, or Excel (XLSX)**. Choose which columns to include and preview 10 rows before downloading. |
+| 4 | **Extract** | Download the enriched dataset as **CSV, JSON, GeoJSON, KML, Parquet, Parquet with WKT geometry, or Excel (XLSX)**. Choose which columns to include and preview 10 rows before downloading. |
 
 **Additional capabilities:**
 - Column selector chip cloud — toggle any source column in or out of the load preview table
 - Header normalization — column names are automatically uppercased with spaces replaced by `_`
 - Snap distance/tolerance control — configurable per run (default 100 ft, range 1–5000 ft); clamped and validated before each API call
 - Collapsible real-time request log on Step 3 — auto-expands when processing starts
-- In-browser analytics powered by DuckDB-WASM (CSV loading, Parquet/GeoParquet export)
+- In-browser data processing powered by DuckDB-WASM (CSV loading and Parquet export)
 - Status indicators for KYTC API and DuckDB engine readiness
 - Google Analytics integration (tag `G-468B94S87K`)
 
@@ -34,10 +34,11 @@ Hosted on GitHub Pages: [https://chrislambert-ky.github.io/kytc-roadway-processo
 
 | Library | Version | Purpose |
 |---------|---------|---------|
-| [Bootstrap](https://getbootstrap.com/) | 5.3.3 | UI framework |
-| [Bootstrap Icons](https://icons.getbootstrap.com/) | 1.11.3 | Icon set |
-| [Tabulator](https://tabulator.info/) | 5.5.2 | Interactive data tables |
-| [DuckDB-WASM](https://duckdb.org/docs/api/wasm/overview.html) | 1.29.0 | In-browser SQL engine (CSV load, Parquet export) |
+| [Bootstrap](https://getbootstrap.com/) | 5.3.8 | UI framework |
+| [Bootstrap Icons](https://icons.getbootstrap.com/) | 1.13.2 | Icon set |
+| [Tabulator](https://tabulator.info/) | 6.7.1 | Interactive data tables |
+| [DuckDB-WASM](https://duckdb.org/docs/api/wasm/overview.html) | 1.32.0 | In-browser SQL engine (CSV load, Parquet export) |
+| [SheetJS](https://docs.sheetjs.com/) | 0.20.3 | Excel workbook export |
 | IBM Plex Mono | — | Monospace UI font (Google Fonts) |
 
 All libraries are loaded from CDN — no build step or npm install required for the front end.
@@ -55,8 +56,8 @@ The app is a static single-page application and can be served by any local HTTP 
 git clone https://github.com/chrislambert-ky/kytc-roadway-processor.git
 cd kytc-roadway-processor
 
-# Serve with any static file server, e.g. the built-in npx option:
-npx serve .
+# Start the local static server
+npm run dev
 ```
 
 Open the URL printed by your server (typically [http://localhost:3000](http://localhost:3000)) in your browser.
@@ -134,7 +135,7 @@ All other catalog fields are available as optional selections in Step 2. The def
 | GeoJSON | Browser | `FeatureCollection`; requires lat/lon columns |
 | KML | Browser | Google Earth / Maps compatible |
 | Parquet | DuckDB-WASM | Columnar binary format |
-| GeoParquet | DuckDB-WASM | Parquet with spatial metadata |
+| Parquet with WKT geometry | DuckDB-WASM | Standard Parquet with a WKT text column; no GeoParquet metadata |
 | Excel (XLSX) | Browser | `.xlsx` workbook |
 
 ---
@@ -193,4 +194,3 @@ A special thanks to **Jeremy Gould** for developing and maintaining the official
 
 - GitHub: [spatialiota](https://github.com/spatialiota)
 - LinkedIn: [jeremy-gould-us](https://www.linkedin.com/in/jeremy-gould-us)
-

@@ -1,4 +1,4 @@
-import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm';
+import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.32.0/+esm';
 
 const KYTC_ENDPOINT = 'https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/api/route/GetRouteInfoByCoordinates';
 const KYTC_KEYS_ENDPOINT = 'https://kytc-api-v100-lts-qrntk7e3ra-uc.a.run.app/api/utilities/GetReturnKeyInfo?service=GetRouteInfoByCoordinates';
@@ -75,7 +75,7 @@ function getFieldTier(key) {
   const coverage = FIELD_COVERAGE[key];
   return (coverage !== undefined && coverage === 100) ? 'recommended' : 'situational';
 }
-const ACTIVE_EXPORT_FORMATS = new Set(['csv', 'json', 'geojson', 'kml', 'xlsx', 'parquet', 'geoparquet']);
+const ACTIVE_EXPORT_FORMATS = new Set(['csv', 'json', 'geojson', 'kml', 'xlsx', 'parquet', 'parquet-wkt']);
 
 const state = {
   currentStep: 1,
@@ -939,7 +939,7 @@ function updateUIState() {
   if (nextBtn) nextBtn.disabled = state.currentStep >= 4;
 
   document.querySelectorAll('.export-dl-btn').forEach(btn => {
-    const needsDuckdb = ['parquet', 'geoparquet'].includes(btn.dataset.format);
+    const needsDuckdb = ['parquet', 'parquet-wkt'].includes(btn.dataset.format);
     btn.disabled = !step4Ready || state.isProcessing || (needsDuckdb && !state.dbReady);
   });
 }
@@ -1154,7 +1154,7 @@ async function processRowsAsync(latField, lonField, selectedKeys) {
   // Duplicate rows will inherit the result from their matching unique row.
   const coordKeyMap = new Map(); // "lat|lon" → [rowIndices]
   outputRows.forEach((row, i) => {
-    const key = `${parseNumber(row[latField])}|${parseNumber(row[lonField])}`;
+    const key = coordinateKey(row, latField, lonField, i);
     if (!coordKeyMap.has(key)) coordKeyMap.set(key, []);
     coordKeyMap.get(key).push(i);
   });
@@ -1184,7 +1184,7 @@ async function processRowsAsync(latField, lonField, selectedKeys) {
       outputRows[primaryIdx] = result.row;
 
       // Propagate KYTC attributes to every duplicate sharing the same coordinates.
-      const key = `${parseNumber(result.row[latField])}|${parseNumber(result.row[lonField])}`;
+      const key = coordinateKey(result.row, latField, lonField, primaryIdx);
       const allIndices = coordKeyMap.get(key) || [primaryIdx];
       allIndices.forEach(idx => {
         if (idx === primaryIdx) return;
@@ -1218,7 +1218,7 @@ async function enrichRow(row, index, latField, lonField, selectedKeys) {
   const lat = parseNumber(row[latField]);
   const lon = parseNumber(row[lonField]);
 
-  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+  if (!isValidCoordinates(lat, lon)) {
     return {
       ok: false,
       row: {
@@ -1399,9 +1399,9 @@ async function downloadFormat(format) {
       updateStatus('Building Parquet file via DuckDB-WASM…', 'info');
       await downloadParquet(rows, `kytc-roadway-processed-${stamp}.parquet`);
       break;
-    case 'geoparquet':
-      updateStatus('Building GeoParquet file via DuckDB-WASM…', 'info');
-      await downloadGeoParquet(rows, `kytc-roadway-processed-${stamp}.parquet`);
+    case 'parquet-wkt':
+      updateStatus('Building Parquet with WKT geometry via DuckDB-WASM…', 'info');
+      await downloadParquetWithWkt(rows, `kytc-roadway-processed-${stamp}.parquet`);
       break;
     default:
       updateStatus('That export format is not ready yet.', 'warning');
@@ -1430,7 +1430,7 @@ async function downloadParquet(rows, filename) {
   }
 }
 
-async function downloadGeoParquet(rows, filename) {
+async function downloadParquetWithWkt(rows, filename) {
   if (!state.dbReady) {
     throw new Error('DuckDB-WASM is not available. Try GeoJSON export instead.');
   }
@@ -1444,21 +1444,21 @@ async function downloadGeoParquet(rows, filename) {
     const lon = parseNumber(row[lonField]);
     return {
       ...row,
-      geometry: (Number.isFinite(lat) && Number.isFinite(lon)) ? `POINT (${lon} ${lat})` : null,
+      geometry: isValidCoordinates(lat, lon) ? `POINT (${lon} ${lat})` : null,
     };
   });
 
-  await state.db.registerFileText('_geoparquet_in.json', JSON.stringify(rowsWithGeom));
+  await state.db.registerFileText('_parquet_wkt_in.json', JSON.stringify(rowsWithGeom));
   try {
-    await state.conn.query("CREATE OR REPLACE TABLE _geoparquet_export AS SELECT * FROM read_json_auto('_geoparquet_in.json')");
-    await state.conn.query("COPY _geoparquet_export TO '_geoparquet_out.parquet' (FORMAT PARQUET)");
-    const buffer = await state.db.copyFileToBuffer('_geoparquet_out.parquet');
+    await state.conn.query("CREATE OR REPLACE TABLE _parquet_wkt_export AS SELECT * FROM read_json_auto('_parquet_wkt_in.json')");
+    await state.conn.query("COPY _parquet_wkt_export TO '_parquet_wkt_out.parquet' (FORMAT PARQUET)");
+    const buffer = await state.db.copyFileToBuffer('_parquet_wkt_out.parquet');
     downloadBlob(buffer, filename, 'application/octet-stream');
-    logProcessConsole(`GeoParquet export: ${rows.length.toLocaleString()} rows, ${(buffer.byteLength / 1024).toFixed(1)} KB. Geometry column: WKT POINT.`);
+    logProcessConsole(`Parquet + WKT geometry export: ${rows.length.toLocaleString()} rows, ${(buffer.byteLength / 1024).toFixed(1)} KB.`);
   } finally {
-    await state.db.dropFile('_geoparquet_in.json').catch(() => {});
-    await state.db.dropFile('_geoparquet_out.parquet').catch(() => {});
-    await state.conn.query('DROP TABLE IF EXISTS _geoparquet_export').catch(() => {});
+    await state.db.dropFile('_parquet_wkt_in.json').catch(() => {});
+    await state.db.dropFile('_parquet_wkt_out.parquet').catch(() => {});
+    await state.conn.query('DROP TABLE IF EXISTS _parquet_wkt_export').catch(() => {});
   }
 }
 
@@ -1480,7 +1480,7 @@ function buildGeoJson(rows) {
   const features = rows.map((row, index) => {
     const lat = parseNumber(row[latField]);
     const lon = parseNumber(row[lonField]);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    if (!isValidCoordinates(lat, lon)) return null;
 
     return {
       type: 'Feature',
@@ -1508,7 +1508,7 @@ function buildKml(rows) {
   const placemarks = rows.map((row, index) => {
     const lat = parseNumber(row[latField]);
     const lon = parseNumber(row[lonField]);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return '';
+    if (!isValidCoordinates(lat, lon)) return '';
 
     const name = escapeXml(row.Road_Name || row.Route_Label || row.County_Name || `Row ${index + 1}`);
     const details = Object.entries(row)
@@ -1968,13 +1968,28 @@ function parseNumber(value) {
   return Number(cleaned);
 }
 
+function isValidCoordinates(lat, lon) {
+  return Number.isFinite(lat) && Number.isFinite(lon) &&
+    Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+}
+
+function coordinateKey(row, latField, lonField, index) {
+  const lat = parseNumber(row[latField]);
+  const lon = parseNumber(row[lonField]);
+  return isValidCoordinates(lat, lon) ? `${lat}|${lon}` : `invalid:${index}`;
+}
+
 function isEmptyValue(value) {
   return value === undefined || value === null || value === '';
 }
 
 function escapeCsv(value) {
-  const stringValue = String(value ?? '');
-  if (/[",\n]/.test(stringValue)) {
+  let stringValue = String(value ?? '');
+  const isNumeric = stringValue.trim() !== '' && Number.isFinite(Number(stringValue));
+  if (!isNumeric && /^[\s]*[=+\-@]/.test(stringValue)) {
+    stringValue = `'${stringValue}`;
+  }
+  if (/[",\r\n]/.test(stringValue)) {
     return `"${stringValue.replace(/"/g, '""')}"`;
   }
   return stringValue;

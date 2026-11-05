@@ -2,9 +2,9 @@
   "name": "kytc-roadway-processor",
   "version": "0.1.0",
   "private": true,
-  "description": "Static Node-served front end for KYTC roadway attribute enrichment.",
+  "description": "Browser-based KYTC roadway attribute enrichment.",
   "scripts": {
-    "dev": "node server.js",
-    "start": "node server.js"
+    "dev": "npx --yes serve .",
+    "start": "npx --yes serve ."
   }
 }

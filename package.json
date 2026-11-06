@@ -5,6 +5,10 @@
   "description": "Browser-based KYTC roadway attribute enrichment.",
   "scripts": {
     "dev": "npx --yes serve .",
-    "start": "npx --yes serve ."
+    "start": "npx --yes serve .",
+    "build:desktop": "node scripts/prepare-desktop.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4"
   }
 }

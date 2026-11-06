@@ -5,6 +5,8 @@
 
 A Google Apps Script add-on that brings Kentucky Transportation Cabinet (KYTC) Linear Referencing System (LRS) roadway attribute lookups directly into Google Sheets. Query the KYTC Spatial API by coordinate, right from your spreadsheet.
 
+Other clients are also available: the [web app](https://chrislambert-ky.github.io/kytc-roadway-processor/), the [Excel add-in](../excel-addon/README.md), and the [Windows desktop app (in development)](../README.md#windows-desktop-app-taurirust-in-development).
+
 ---
 
 ## What It Does

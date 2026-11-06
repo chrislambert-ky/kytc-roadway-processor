@@ -76,3 +76,4 @@ The `*.workers.dev` domain is not explicitly blocked by Excel Online's CSP, so r
 |------|------|
 | Web app (no install) | [chrislambert-ky.github.io/kytc-roadway-processor](https://chrislambert-ky.github.io/kytc-roadway-processor/) |
 | Google Sheets add-on | See [sheets-addon/README.md](../sheets-addon/README.md) |
+| Windows desktop app (in development) | See [Windows Desktop App](../README.md#windows-desktop-app-taurirust-in-development) |

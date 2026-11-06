@@ -1,12 +1,25 @@
 # KYTC Roadway Attribute Processor
 
-A browser-based single-page application for enriching coordinate datasets with Kentucky Transportation Cabinet (KYTC) Linear Referencing System (LRS) roadway attributes. Upload a file with GPS coordinates, choose which roadway attributes to append, process the records against the KYTC Spatial API, and export the enriched dataset in the format of your choice — all without leaving the browser.
+A collection of four client applications for enriching coordinate data with Kentucky Transportation Cabinet (KYTC) Linear Referencing System (LRS) roadway attributes: a hosted web app, a Microsoft Excel add-in, a Google Sheets add-on, and a Windows desktop app built with Tauri and Rust.
 
 ---
 
 ## Live App
 
 Hosted on GitHub Pages: [https://chrislambert-ky.github.io/kytc-roadway-processor/](https://chrislambert-ky.github.io/kytc-roadway-processor/)
+
+---
+
+## Ways to Use the KYTC API
+
+| Client | Best for | Status and details |
+|--------|----------|--------------------|
+| **Web app** | Enriching and exporting files in a browser without installing an app | Hosted on GitHub Pages. Processing runs in the browser; exports use browser downloads. |
+| **Excel add-in** | Looking up attributes from Excel formulas or processing a worksheet in Excel | Early release for Excel Online and Desktop. See [excel-addon/README.md](excel-addon/README.md). |
+| **Google Sheets add-on** | Looking up attributes from formulas or batch-processing a Google Sheet | Manually installed in a bound Apps Script project. See [sheets-addon/README.md](sheets-addon/README.md). |
+| **Windows desktop app (Tauri/Rust)** | Using a desktop window and choosing a local export location | In development. Bundles the web interface locally and uses a native Save dialog. Rust currently provides the desktop shell and export file writing; data processing and export generation still use JavaScript and DuckDB-WASM. |
+
+The desktop app is **not yet a complete Rust rewrite or a published installer**. It still needs an internet connection for the KYTC API and its CDN-hosted frontend libraries. See [Windows Desktop App](#windows-desktop-app-taurirust-in-development) for development instructions.
 
 ---
 
@@ -39,9 +52,11 @@ Hosted on GitHub Pages: [https://chrislambert-ky.github.io/kytc-roadway-processo
 | [Tabulator](https://tabulator.info/) | 6.7.1 | Interactive data tables |
 | [DuckDB-WASM](https://duckdb.org/docs/api/wasm/overview.html) | 1.32.0 | In-browser SQL engine (CSV load, Parquet export) |
 | [SheetJS](https://docs.sheetjs.com/) | 0.20.3 | Excel workbook export |
+| [Tauri](https://tauri.app/) 2 | — | Windows desktop shell and native Save dialog |
+| [Rust](https://www.rust-lang.org/) | — | Desktop commands and filesystem writing |
 | IBM Plex Mono | — | Monospace UI font (Google Fonts) |
 
-All libraries are loaded from CDN — no build step or npm install required for the front end.
+The web frontend libraries are loaded from CDN; the browser app has no frontend build step. The Tauri desktop app bundles the same HTML, CSS, and JavaScript locally, but still loads those libraries from CDN.
 
 ---
 
@@ -63,6 +78,30 @@ npm run dev
 Open the URL printed by your server (typically [http://localhost:3000](http://localhost:3000)) in your browser.
 
 > **Note:** DuckDB-WASM requires that files are served over HTTP (not opened as `file://`). Always use the local server during development.
+
+---
+
+## Windows Desktop App (Tauri/Rust, in development)
+
+The desktop app opens the existing interface in a Windows WebView. Tauri packages the frontend assets from `desktop-dist`; it does not load the hosted GitHub Pages site. The current Rust code provides the desktop shell and a native Save dialog that writes exported bytes to the chosen path, defaulting to Downloads. File loading, KYTC requests, transformations, previews, and export generation still use the existing JavaScript frontend and DuckDB-WASM.
+
+**Prerequisites:** Node.js/npm and the Rust stable toolchain. A compatible WebView2 runtime is required to run the Windows app.
+
+From the repository root:
+
+```powershell
+npm install
+npx tauri dev
+```
+
+To build the debug executable with the frontend embedded:
+
+```powershell
+npx tauri build --debug --no-bundle
+.\src-tauri\target\debug\app.exe
+```
+
+This debug build is for development and testing; a distributable installer and release packaging have not yet been validated.
 
 ---
 
@@ -158,15 +197,32 @@ kytc-roadway-processor/
 ├── index.html              # Single-page application shell
 ├── workflow-app.js         # ES module — all app logic
 ├── styles.css              # Custom styles (Bootstrap overrides + app-specific)
-├── package.json            # Project metadata; no runtime dependencies
+├── package.json            # Web scripts and Tauri CLI development dependency
+├── scripts/
+│   └── prepare-desktop.mjs # Copies frontend assets for the Tauri app
 ├── sample-points.csv       # 20-row bridge coordinate sample for testing
-└── sheets-addon/           # Google Sheets add-on (Apps Script)
-    ├── Code.gs             # Core script — custom functions, batch processor, helpers
-    ├── ProcessDialog.html  # Modal dialog for batch processing
-    ├── Sidebar.html        # Field reference sidebar
-    ├── appsscript.json     # Apps Script manifest
-    └── README.md           # Full setup and usage instructions
+├── excel-addon/            # Microsoft Excel add-in
+│   ├── README.md           # Installation and usage
+│   ├── taskpane.html       # Excel task pane
+│   └── cf-worker.js        # Cloudflare proxy for Excel Online
+├── sheets-addon/           # Google Sheets add-on (Apps Script)
+│   ├── Code.gs             # Custom functions and batch processor
+│   ├── ProcessDialog.html  # Modal dialog for batch processing
+│   ├── Sidebar.html        # Field reference sidebar
+│   ├── appsscript.json     # Apps Script manifest
+│   └── README.md           # Setup and usage
+└── src-tauri/              # Tauri desktop shell and Rust commands
+    ├── src/lib.rs          # Native Save dialog and file writing
+    └── tauri.conf.json     # Desktop app and frontend configuration
 ```
+
+The Tauri frontend bundle is generated in `desktop-dist/` and the Rust build output is in `src-tauri/target/`; both are generated directories and are not committed.
+
+## Microsoft Excel Add-in
+
+The `excel-addon/` folder contains an add-in for Excel Online and Excel Desktop. It provides worksheet functions for individual lookups and a task pane for batch-processing spreadsheet rows. Excel Online's content security policy requires its requests to use the configured Cloudflare Worker proxy.
+
+See [excel-addon/README.md](excel-addon/README.md) for installation, architecture, and usage details.
 
 ---
 
@@ -186,7 +242,7 @@ See [sheets-addon/README.md](sheets-addon/README.md) for setup and usage instruc
 
 This is an unofficial personal project with no formal license. It is not affiliated with or endorsed by the Kentucky Transportation Cabinet.
 
-The underlying KYTC Spatial API is publicly accessible and provided by the Kentucky Transportation Cabinet. This tool is simply a browser-based interface designed to make that API usable without programming — no data is stored, and no server-side processing is performed beyond the API calls themselves.
+The underlying KYTC Spatial API is publicly accessible and provided by the Kentucky Transportation Cabinet. This project is not affiliated with or endorsed by KYTC. The web and desktop clients process files locally but send coordinates to the KYTC API for lookup; the Excel and Google Sheets clients have their own request paths described in their respective documentation.
 
 ## Acknowledgements
 

@@ -1374,41 +1374,52 @@ async function downloadFormat(format) {
   }
 
   const stamp = new Date().toISOString().slice(0, 10);
+  let savedPath;
 
   switch (format) {
     case 'csv':
-      downloadCsv(rows, `kytc-roadway-processed-${stamp}.csv`);
+      savedPath = await downloadCsv(rows, `kytc-roadway-processed-${stamp}.csv`);
       break;
     case 'json':
-      downloadBlob(JSON.stringify(rows, null, 2), `kytc-roadway-processed-${stamp}.json`, 'application/json;charset=utf-8;');
+      savedPath = await downloadBlob(JSON.stringify(rows, null, 2), `kytc-roadway-processed-${stamp}.json`, 'application/json;charset=utf-8;');
       break;
     case 'geojson': {
       const geojson = buildGeoJson(rows);
-      downloadBlob(JSON.stringify(geojson, null, 2), `kytc-roadway-processed-${stamp}.geojson`, 'application/geo+json;charset=utf-8;');
+      savedPath = await downloadBlob(JSON.stringify(geojson, null, 2), `kytc-roadway-processed-${stamp}.geojson`, 'application/geo+json;charset=utf-8;');
       break;
     }
     case 'kml': {
       const kml = buildKml(rows);
-      downloadBlob(kml, `kytc-roadway-processed-${stamp}.kml`, 'application/vnd.google-earth.kml+xml;charset=utf-8;');
+      savedPath = await downloadBlob(kml, `kytc-roadway-processed-${stamp}.kml`, 'application/vnd.google-earth.kml+xml;charset=utf-8;');
       break;
     }
     case 'xlsx':
-      downloadXlsx(rows, `kytc-roadway-processed-${stamp}.xlsx`);
+      savedPath = await downloadXlsx(rows, `kytc-roadway-processed-${stamp}.xlsx`);
       break;
     case 'parquet':
       updateStatus('Building Parquet file via DuckDB-WASM…', 'info');
-      await downloadParquet(rows, `kytc-roadway-processed-${stamp}.parquet`);
+      savedPath = await downloadParquet(rows, `kytc-roadway-processed-${stamp}.parquet`);
       break;
     case 'parquet-wkt':
       updateStatus('Building Parquet with WKT geometry via DuckDB-WASM…', 'info');
-      await downloadParquetWithWkt(rows, `kytc-roadway-processed-${stamp}.parquet`);
+      savedPath = await downloadParquetWithWkt(rows, `kytc-roadway-processed-${stamp}.parquet`);
       break;
     default:
       updateStatus('That export format is not ready yet.', 'warning');
       return;
   }
 
-  updateStatus(`Downloaded ${format.toUpperCase()} successfully.`, 'success');
+  if (!savedPath) {
+    updateStatus('Export canceled.', 'info');
+    return;
+  }
+
+  updateStatus(
+    window.__TAURI__?.core?.invoke
+      ? `Saved export to ${savedPath}.`
+      : `Downloaded ${format.toUpperCase()} successfully.`,
+    'success'
+  );
 }
 
 async function downloadParquet(rows, filename) {
@@ -1421,8 +1432,9 @@ async function downloadParquet(rows, filename) {
     await state.conn.query("CREATE OR REPLACE TABLE _parquet_export AS SELECT * FROM read_json_auto('_parquet_in.json')");
     await state.conn.query("COPY _parquet_export TO '_parquet_out.parquet' (FORMAT PARQUET)");
     const buffer = await state.db.copyFileToBuffer('_parquet_out.parquet');
-    downloadBlob(buffer, filename, 'application/octet-stream');
+    const savedPath = await downloadBlob(buffer, filename, 'application/octet-stream');
     logProcessConsole(`Parquet export: ${rows.length.toLocaleString()} rows, ${(buffer.byteLength / 1024).toFixed(1)} KB.`);
+    return savedPath;
   } finally {
     await state.db.dropFile('_parquet_in.json').catch(() => {});
     await state.db.dropFile('_parquet_out.parquet').catch(() => {});
@@ -1453,8 +1465,9 @@ async function downloadParquetWithWkt(rows, filename) {
     await state.conn.query("CREATE OR REPLACE TABLE _parquet_wkt_export AS SELECT * FROM read_json_auto('_parquet_wkt_in.json')");
     await state.conn.query("COPY _parquet_wkt_export TO '_parquet_wkt_out.parquet' (FORMAT PARQUET)");
     const buffer = await state.db.copyFileToBuffer('_parquet_wkt_out.parquet');
-    downloadBlob(buffer, filename, 'application/octet-stream');
+    const savedPath = await downloadBlob(buffer, filename, 'application/octet-stream');
     logProcessConsole(`Parquet + WKT geometry export: ${rows.length.toLocaleString()} rows, ${(buffer.byteLength / 1024).toFixed(1)} KB.`);
+    return savedPath;
   } finally {
     await state.db.dropFile('_parquet_wkt_in.json').catch(() => {});
     await state.db.dropFile('_parquet_wkt_out.parquet').catch(() => {});
@@ -1533,7 +1546,7 @@ function buildKml(rows) {
 </kml>`;
 }
 
-function downloadCsv(rows, filename) {
+async function downloadCsv(rows, filename) {
   const columns = Object.keys(rows[0] || {});
   const lines = [columns.map(escapeCsv).join(',')];
 
@@ -1542,10 +1555,10 @@ function downloadCsv(rows, filename) {
     lines.push(values.join(','));
   });
 
-  downloadBlob(lines.join('\n'), filename, 'text/csv;charset=utf-8;');
+  return downloadBlob(lines.join('\n'), filename, 'text/csv;charset=utf-8;');
 }
 
-function downloadXlsx(rows, filename) {
+async function downloadXlsx(rows, filename) {
   // SheetJS cannot serialize arrays or objects into cells — coerce them to
   // strings the same way escapeCsv() does for the CSV export.
   const normalized = rows.map(row => {
@@ -1559,21 +1572,28 @@ function downloadXlsx(rows, filename) {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'KYTC Data');
   const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-  downloadBlob(
+  return downloadBlob(
     new Uint8Array(buffer),
     filename,
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   );
 }
 
-function downloadBlob(content, filename, mimeType) {
+async function downloadBlob(content, filename, mimeType) {
+  if (window.__TAURI__?.core?.invoke) {
+    const blob = new Blob([content], { type: mimeType });
+    const bytes = Array.from(new Uint8Array(await blob.arrayBuffer()));
+    return window.__TAURI__.core.invoke('save_export', { filename, data: bytes });
+  }
+
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = filename;
   anchor.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return filename;
 }
 
 function renderExportSummary() {
